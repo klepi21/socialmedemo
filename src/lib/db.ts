@@ -12,6 +12,8 @@ const db = createClient({
   authToken: authToken,
 });
 
+console.log(`[Turso] Connected to: ${url ? url.replace(/:[^@]+@/, ':***@') : 'local file'}`);
+
 let schemaInitialized = false;
 
 // Initialize schema (async-ish, Turso execute)
