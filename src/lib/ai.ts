@@ -21,9 +21,14 @@ export async function getLocalEmbedding(text: string) {
 
   if (!embeddingPipeline) {
     const { pipeline } = await import('@xenova/transformers');
+    // Set cache directory to /tmp for Vercel
     embeddingPipeline = await pipeline('feature-extraction', 'Xenova/all-MiniLM-L6-v2');
   }
-  
-  const output = await embeddingPipeline(text, { pooling: 'mean', normalize: true });
+
+  // Timeout for production to prevent Vercel 10s kill
+  const embeddingPromise = embeddingPipeline(text, { pooling: 'mean', normalize: true });
+  const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('TIMEOUT')), 4000));
+
+  const output = await Promise.race([embeddingPromise, timeoutPromise]) as any;
   return Array.from(output.data) as number[];
 }

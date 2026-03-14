@@ -385,18 +385,7 @@ function ChatComponent() {
       <footer className="p-4 sm:p-6 z-30 bg-white border-t border-slate-100">
         <div className="max-w-2xl mx-auto flex flex-col gap-4">
           
-          {/* Smart Finished Button */}
-          {showManualButton && (
-            <div className="flex justify-center animate-in fade-in slide-in-from-bottom-2">
-              <button 
-                onClick={() => handleFinish()}
-                className="text-[10px] font-black uppercase tracking-[0.2em] text-white bg-blue-600 px-6 py-3 rounded-full hover:bg-blue-700 hover:scale-105 transition-all flex items-center gap-2 shadow-xl shadow-blue-500/20"
-              >
-                <FileText size={14} />
-                Ολοκληρωση & Προταση PDF
-              </button>
-            </div>
-          )}
+          {/* Smart Finished Button removed as per user request */}
           
           <div className="flex items-center justify-center gap-6 w-full">
             {useVoice ? (
