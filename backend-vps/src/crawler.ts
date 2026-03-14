@@ -35,9 +35,20 @@ export class CustomCrawler {
         onProgress(`Scraping: ${url}`, count, this.visited.size);
         
         const response = await axios.get(url, { 
-          timeout: 10000,
-          headers: { 'User-Agent': 'SocialMe-Crawler/1.0' }
+          timeout: 15000,
+          headers: { 
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
+            'Accept-Language': 'en-US,en;q=0.9,el;q=0.8',
+          },
+          validateStatus: () => true, // Don't throw on 404/500 so we can log it
+          maxRedirects: 5
         });
+
+        if (response.status !== 200) {
+           console.error(`[CRAWLER] Bad status ${response.status} for ${url}`);
+           continue;
+        }
         
         const $ = cheerio.load(response.data);
         const title = $('title').text() || 'No Title';
@@ -64,7 +75,10 @@ export class CustomCrawler {
         });
 
       } catch (err: any) {
-        console.error(`Failed to scrape ${url}:`, err.message);
+        console.error(`[CRAWLER] Error on ${url}:`, err.message);
+        if (err.response) {
+          console.error(`[CRAWLER] Server responded with: ${err.response.status}`);
+        }
       }
     }
 
