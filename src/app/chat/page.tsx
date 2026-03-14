@@ -316,7 +316,7 @@ function ChatComponent() {
           
           <Button 
             variant="glass" 
-            className={`w-10 h-10 p-0 rounded-full border ${useVoice ? 'text-blue-500 bg-blue-50 border-blue-100' : 'text-slate-400 border-slate-100'}`}
+            className={`w-10 h-10 p-0 rounded-full border ${useVoice ? 'text-blue-600 bg-blue-50 border-blue-200' : 'text-slate-600 border-slate-200'}`}
             onClick={() => { setUseVoice(!useVoice); stopListening(); cancelSpeak(); }}
           >
             {useVoice ? <Mic size={20} /> : <MessageSquare size={20} />}
@@ -353,15 +353,15 @@ function ChatComponent() {
                   <div className="flex items-center justify-center gap-3">
                     <Button 
                       onClick={() => setUseVoice(false)}
-                      variant={!useVoice ? 'primary' : 'glass'}
-                      className="gap-2 px-6 h-11 rounded-2xl"
+                      variant={!useVoice ? 'primary' : 'outline'}
+                      className={`gap-2 px-6 h-11 rounded-2xl ${!useVoice ? 'bg-blue-600 shadow-lg shadow-blue-500/25' : 'border-blue-200 text-blue-600 bg-blue-50/50'}`}
                     >
                       <MessageSquare size={18} /> Κείμενο
                     </Button>
                     <Button 
                       onClick={() => setUseVoice(true)}
-                      variant={useVoice ? 'primary' : 'glass'}
-                      className="gap-2 px-6 h-11 rounded-2xl"
+                      variant={useVoice ? 'primary' : 'outline'}
+                      className={`gap-2 px-6 h-11 rounded-2xl ${useVoice ? 'bg-blue-600 shadow-lg shadow-blue-500/25' : 'border-blue-200 text-blue-600 bg-blue-50/50'}`}
                     >
                       <Mic size={18} /> Φωνή
                     </Button>
@@ -442,7 +442,7 @@ function ChatComponent() {
               <div className="w-full flex items-center gap-3">
                 <button 
                   onClick={() => { setUseVoice(true); }}
-                  className="w-12 h-12 bg-slate-50 text-slate-400 border border-slate-100 rounded-2xl flex items-center justify-center hover:text-blue-500 transition-colors shadow-sm"
+                  className="w-12 h-12 bg-blue-50 text-blue-600 border border-blue-100 rounded-2xl flex items-center justify-center hover:bg-blue-100 transition-colors shadow-sm"
                   title="Switch to Voice"
                 >
                   <Mic size={20} />
