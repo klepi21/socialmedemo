@@ -347,9 +347,25 @@ function ChatComponent() {
                 </div>
                 <div className="space-y-2">
                   <h3 className="text-2xl font-black text-slate-800 tracking-tight">Γεια σας!</h3>
-                  <p className="text-slate-500 max-w-xs mx-auto text-sm leading-relaxed">
-                    Είμαι ο ψηφιακός σας σύμβουλος. Πώς μπορώ να βοηθήσω την επιχείρησή σας σήμερα;
+                  <p className="text-slate-500 max-w-xs mx-auto text-sm leading-relaxed mb-4">
+                    Είμαι ο ψηφιακός σας σύμβουλος. Πώς προτιμάτε να επικοινωνήσουμε;
                   </p>
+                  <div className="flex items-center justify-center gap-3">
+                    <Button 
+                      onClick={() => setUseVoice(false)}
+                      variant={!useVoice ? 'primary' : 'glass'}
+                      className="gap-2 px-6 h-11 rounded-2xl"
+                    >
+                      <MessageSquare size={18} /> Κείμενο
+                    </Button>
+                    <Button 
+                      onClick={() => setUseVoice(true)}
+                      variant={useVoice ? 'primary' : 'glass'}
+                      className="gap-2 px-6 h-11 rounded-2xl"
+                    >
+                      <Mic size={18} /> Φωνή
+                    </Button>
+                  </div>
                 </div>
               </div>
             )}
@@ -402,6 +418,7 @@ function ChatComponent() {
                 <button 
                   onClick={() => { stopListening(); cancelSpeak(); }}
                   className="w-14 h-14 bg-slate-50 hover:bg-slate-100 text-slate-400 rounded-full flex items-center justify-center transition-all border border-slate-100 shadow-inner"
+                  title="Stop"
                 >
                   <Square size={20} fill="currentColor" />
                 </button>
@@ -413,24 +430,40 @@ function ChatComponent() {
                 >
                   {isListening ? <MicOff size={36} /> : <Mic size={36} />}
                 </button>
+                <button 
+                   onClick={() => { setUseVoice(false); stopListening(); cancelSpeak(); }}
+                   className="w-14 h-14 bg-slate-50 hover:bg-slate-100 text-blue-500 rounded-full flex items-center justify-center transition-all border border-slate-100 shadow-inner"
+                   title="Switch to Text"
+                >
+                  <MessageSquare size={20} />
+                </button>
               </div>
             ) : (
-              <div className="w-full bg-slate-50 p-2 rounded-2xl border border-slate-200 flex items-center gap-2 pr-3 focus-within:border-blue-300 focus-within:bg-white transition-all shadow-inner">
-                <input 
-                  type="text"
-                  value={input}
-                  onChange={(e) => setInput(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && handleSend('')}
-                  placeholder="Πώς μπορούμε να σας βοηθήσουμε;"
-                  className="flex-1 bg-transparent border-none outline-none px-4 py-2 text-sm sm:text-base text-slate-900"
-                />
+              <div className="w-full flex items-center gap-3">
                 <button 
-                  onClick={() => handleSend('')}
-                  disabled={!input.trim() || isLoading || isAnalyzing}
-                  className="w-10 h-10 bg-blue-600 hover:bg-blue-500 disabled:bg-slate-200 rounded-xl flex items-center justify-center transition-all shadow-md active:scale-95"
+                  onClick={() => { setUseVoice(true); }}
+                  className="w-12 h-12 bg-slate-50 text-slate-400 border border-slate-100 rounded-2xl flex items-center justify-center hover:text-blue-500 transition-colors shadow-sm"
+                  title="Switch to Voice"
                 >
-                  <Send size={18} className="text-white" />
+                  <Mic size={20} />
                 </button>
+                <div className="flex-1 bg-slate-50 p-2 rounded-2xl border border-slate-200 flex items-center gap-2 pr-3 focus-within:border-blue-300 focus-within:bg-white transition-all shadow-inner">
+                  <input 
+                    type="text"
+                    value={input}
+                    onChange={(e) => setInput(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && handleSend('')}
+                    placeholder="Πώς μπορούμε να σας βοηθήσουμε;"
+                    className="flex-1 bg-transparent border-none outline-none px-4 py-2 text-sm sm:text-base text-slate-900"
+                  />
+                  <button 
+                    onClick={() => handleSend('')}
+                    disabled={!input.trim() || isLoading || isAnalyzing}
+                    className="w-10 h-10 bg-blue-600 hover:bg-blue-500 disabled:bg-slate-200 rounded-xl flex items-center justify-center transition-all shadow-md active:scale-95"
+                  >
+                    <Send size={18} className="text-white" />
+                  </button>
+                </div>
               </div>
             )}
           </div>
