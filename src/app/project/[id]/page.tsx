@@ -139,8 +139,8 @@ export default function ProjectPage() {
   const startTraining = async (sourceId?: string, url?: string, text?: string) => {
     const { id: projectId } = params as any;
     try {
-      const endpoint = isRemote ? `${BACKEND_URL}/train` : '/api/train';
-      console.log(`[TRAIN] Starting job at: ${endpoint} (Remote: ${isRemote})`);
+      const endpoint = '/api/train'; // Always call internal, server handles proxy
+      console.log(`[TRAIN] Starting job at: ${endpoint}`);
       
       const res = await fetch(endpoint, {
         method: 'POST',
@@ -182,14 +182,7 @@ export default function ProjectPage() {
       // 1. Wipe DB (always local API to maintain DB security)
       await fetch(`/api/projects/${id}/wipe`, { method: 'POST' });
       
-      // 2. If remote, ensure we tell the VPS to stop as well
-      if (isRemote) {
-        await fetch(`${BACKEND_URL}/stop`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ projectId: id })
-        }).catch(e => console.warn("Could not stop remote job", e));
-      }
+      // 2. The local wipe API now handles stop signals if needed
 
       setPages([]);
       setSources([]);
@@ -215,7 +208,7 @@ export default function ProjectPage() {
   };
 
   const monitorJob = (jobId: string) => {
-    const url = isRemote ? `${BACKEND_URL}/status/${jobId}` : `/api/train?jobId=${jobId}`;
+    const url = `/api/train?jobId=${jobId}`;
     const eventSource = new EventSource(url);
     eventSource.onmessage = (event) => {
       try {

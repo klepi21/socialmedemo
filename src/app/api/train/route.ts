@@ -4,6 +4,8 @@ import projectService from '@/lib/project-service';
 
 export const dynamic = 'force-dynamic';
 
+const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL;
+
 // GET: Stream status of a specific job
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
@@ -11,6 +13,23 @@ export async function GET(req: NextRequest) {
 
   if (!jobId) {
     return NextResponse.json({ error: 'JobId is required' }, { status: 400 });
+  }
+
+  // --- PROXY to VPS if configured ---
+  if (BACKEND_URL && BACKEND_URL.startsWith('http')) {
+    try {
+      const remoteUrl = `${BACKEND_URL}/status/${jobId}`;
+      const res = await fetch(remoteUrl);
+      return new Response(res.body, {
+        headers: {
+          'Content-Type': 'text/event-stream',
+          'Cache-Control': 'no-cache',
+          'Connection': 'keep-alive',
+        },
+      });
+    } catch (err: any) {
+      console.error("[PROXY] SSE Failed:", err.message);
+    }
   }
 
   const encoder = new TextEncoder();
@@ -51,8 +70,21 @@ export async function GET(req: NextRequest) {
 // POST: Start a new background training job for a project
 export async function POST(req: NextRequest) {
   try {
-    const { projectId, sourceId, url, manualKnowledge } = await req.json();
+    const body = await req.json();
+    const { projectId, sourceId, url, manualKnowledge } = body;
     if (!projectId) return NextResponse.json({ error: 'Project ID is required' }, { status: 400 });
+
+    // --- PROXY to VPS if configured ---
+    if (BACKEND_URL && BACKEND_URL.startsWith('http')) {
+      console.log("[PROXY] Forwarding training to VPS:", BACKEND_URL);
+      const res = await fetch(`${BACKEND_URL}/train`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+      });
+      const data = await res.json();
+      return NextResponse.json(data, { status: res.status });
+    }
 
     const project = await projectService.getProject(projectId);
     if (!project) return NextResponse.json({ error: 'Project not found' }, { status: 404 });
