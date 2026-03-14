@@ -2,6 +2,11 @@ import axios from 'axios';
 import * as cheerio from 'cheerio';
 import { URL } from 'url';
 import https from 'https';
+import http from 'http';
+
+// Force IPv4 to avoid ETIMEDOUT on servers that don't support IPv6
+const httpAgent = new http.Agent({ family: 4 });
+const httpsAgent = new https.Agent({ family: 4, rejectUnauthorized: false });
 
 export class CustomCrawler {
   private visited = new Set<string>();
@@ -40,7 +45,8 @@ export class CustomCrawler {
           headers: { 
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
           },
-          httpsAgent: new https.Agent({ rejectUnauthorized: false }),
+          httpAgent,
+          httpsAgent,
           validateStatus: () => true,
           maxRedirects: 5
         });
