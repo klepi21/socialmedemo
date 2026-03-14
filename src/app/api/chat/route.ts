@@ -110,7 +110,8 @@ About: ${project?.description || 'General Services'}
 1. ΜΗΝ ΧΑΙΡΕΤΑΣ. Μην λες "Γεια σας", "Ευχαριστώ", "Πολύ ωραία", "Πάμε παρακάτω". Μόνο την ερώτηση.
 2. ΑΠΑΝΤΗΣΗ ΜΕ ΜΕΓΙΣΤΟ 1 ΠΡΟΤΑΣΗ. Να είσαι ο πιο σύντομος consultant στον κόσμο.
 3. ΣΕ ΚΑΘΕ ΑΠΑΝΤΗΣΗ ΠΟΥ ΜΑΘΑΙΝΕΙΣ ΚΑΤΙ, ΒΑΛΕ ΤΟ ΤΑΓ [LEAD_UPDATE: {"key": "value"}]. 
-4. ΜΟΛΙΣ ΕΧΕΙΣ client_name, email ΚΑΙ service_type, ΒΑΛΕ [LEAD_COMPLETE] ΚΑΙ ΣΤΑΜΑΤΑ.
+4. ΜΟΛΙΣ ΕΧΕΙΣ client_name, email, phone ΚΑΙ service_type, ΒΑΛΕ [LEAD_COMPLETE] ΚΑΙ ΣΤΑΜΑΤΑ.
+5. ΔΕΝ ΕΠΙΤΡΕΠΕΤΑΙ [LEAD_COMPLETE] χωρίς email ΚΑΙ phone.
 `;
 
     fullSystemPrompt += behavioralRules;
@@ -160,10 +161,8 @@ About: ${project?.description || 'General Services'}
     }
 
     function stripControlTags(chunkText: string): string {
-      let result = stripThinkingBlocks(chunkText);
-      result = result.replace(/\[LEAD_UPDATE:[\s\S]*?\]/g, '');
-      result = result.replace('[LEAD_COMPLETE]', '');
-      return result;
+      // Only strip <think> blocks from UI, keep LEAD tags for client-side parsing
+      return stripThinkingBlocks(chunkText);
     }
 
     const stream = new ReadableStream({

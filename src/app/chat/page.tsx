@@ -211,8 +211,17 @@ function ChatComponent() {
         }
       }
 
-      if (assistantText.includes('[LEAD_COMPLETE]') && leadState.email && leadState.phone) {
-         setTimeout(() => handleFinish(), 2000);
+      // Auto-detect lead completion
+      if (assistantText.includes('[LEAD_COMPLETE]') && (leadState.email || leadState.phone)) {
+        console.log('[LEAD] Complete tag detected, triggering analysis...');
+        setTimeout(() => handleFinish(), 2000);
+      }
+
+      // Safety net: auto-analyze after 10+ messages if we have SOME data
+      const totalMessages = messagesRef.current.length;
+      if (totalMessages >= 10 && leadState.client_name && (leadState.email || leadState.phone) && !isAnalyzing && !leadData) {
+        console.log('[LEAD] Safety net: enough messages with lead data, auto-analyzing...');
+        setTimeout(() => handleFinish(), 3000);
       }
 
     } catch (err) {
