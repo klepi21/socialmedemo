@@ -135,14 +135,29 @@ export default function ProjectPage() {
   const wipeKnowledge = async () => {
     setIsWiping(true);
     setShowWipeConfirm(false);
-    const { id } = params as any;
+    const id = params?.id as string;
     try {
-      await fetch(`/api/projects/${id}`, { method: 'DELETE' });
-      await fetchProject();
+      await fetch(`/api/projects/${id}/wipe`, { method: 'POST' });
+      setPages([]);
+      setSources([]);
+      setStats({ vectors: 0, sources: 0 });
+      setTrainingJob(null);
+      fetchProject();
     } catch (err) {
       console.error(err);
     } finally {
       setIsWiping(false);
+    }
+  };
+
+  const deleteProject = async () => {
+    if (!confirm('☢️ EXTREME ACTION: This will delete the project and all its data FOREVER. Proceed?')) return;
+    const id = params?.id as string;
+    try {
+      await fetch(`/api/projects/${id}`, { method: 'DELETE' });
+      window.location.href = '/';
+    } catch (err) {
+      console.error(err);
     }
   };
 
@@ -260,16 +275,25 @@ export default function ProjectPage() {
             </div>
           </div>
           <div className="flex flex-col items-end gap-2">
-            <Button 
-              variant="primary" 
-              className="gap-2 h-14 px-8 shadow-2xl shadow-blue-600/20 disabled:opacity-50 disabled:grayscale"
-              disabled={stats.sources === 0}
-              onClick={() => window.location.href = `/chat?project=${project.id}`}
-            >
-              <MessageSquare size={20} />
-              Launch AI Consultant
-            </Button>
-            {stats.sources === 0 && (
+            <div className="flex gap-2">
+              <Button 
+                variant="glass" 
+                className="text-red-500 border-red-500/20 hover:bg-red-500/10 h-14 px-4 shadow-xl"
+                onClick={deleteProject}
+              >
+                Delete Project
+              </Button>
+              <Button 
+                variant="primary" 
+                className="gap-2 h-14 px-8 shadow-2xl shadow-blue-600/20 disabled:opacity-50 disabled:grayscale"
+                disabled={stats.vectors === 0}
+                onClick={() => window.location.href = `/chat?project=${project.id}`}
+              >
+                <MessageSquare size={20} />
+                Launch AI Consultant
+              </Button>
+            </div>
+            {stats.vectors === 0 && (
               <span className="text-[10px] text-yellow-500 font-bold uppercase tracking-tighter animate-pulse">
                 Train the AI first to chat
               </span>
@@ -472,7 +496,9 @@ export default function ProjectPage() {
                 <div className="space-y-6">
                   <div className="flex items-center justify-between">
                     <span className="text-xs font-bold text-blue-400 uppercase tracking-widest">
-                      {trainingJob.status === 'scraping' ? `Found ${trainingJob.current} pages` : trainingJob.status}
+                      {trainingJob.status === 'scraping' 
+                        ? `Scanning: ${trainingJob.totalDiscovered} found / ${trainingJob.current} learned` 
+                        : trainingJob.status}
                     </span>
                     <span className="text-xs font-bold">{trainingJob.progress}%</span>
                   </div>

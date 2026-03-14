@@ -118,6 +118,14 @@ const projectService = {
     return Array.from(rs.rows);
   },
 
+  async deleteProject(id: string): Promise<void> {
+    await this.resetKnowledge(id);
+    await db.execute({
+      sql: 'DELETE FROM projects WHERE id = ?',
+      args: [id]
+    });
+  },
+
   async resetKnowledge(projectId: string): Promise<void> {
     
     await db.batch([

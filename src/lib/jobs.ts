@@ -14,6 +14,7 @@ export interface TrainingJob {
   current: number;
   total: number;
   chunks: number;
+  totalDiscovered: number;
   startTime: number;
 }
 
@@ -29,6 +30,7 @@ if (!globalForJobs.activeProjectJobs) {
 
 const jobs: Map<string, TrainingJob> = globalForJobs.jobs;
 const activeProjectJobs: Map<string, string> = globalForJobs.activeProjectJobs;
+const abortControllers = new Map<string, AbortController>();
 
 function chunkText(text: string, size: number = 800): string[] {
   const chunks: string[] = [];
@@ -58,9 +60,12 @@ export const jobManager = {
     }
 
     const id = Buffer.from(projectId + Date.now()).toString('base64').slice(0, 10);
-    const newJob: TrainingJob = { id, url: url || 'manual', status: 'idle', message: 'Starting...', progress: 0, current: 0, total: 0, chunks: 0, startTime: Date.now() };
+    const newJob: TrainingJob = { id, url: url || 'manual', status: 'idle', message: 'Starting...', progress: 0, current: 0, total: 0, chunks: 0, totalDiscovered: 0, startTime: Date.now() };
     jobs.set(id, newJob);
     activeProjectJobs.set(projectId, id);
+    
+    const controller = new AbortController();
+    abortControllers.set(id, controller);
 
     let finalSourceId = sourceId;
     if (!finalSourceId) {
@@ -84,9 +89,26 @@ export const jobManager = {
     return job;
   },
 
-  // Force reset a project's job status
+  // Stop and cleanup a project's job
+  stopJob(projectId: string) {
+    const jobId = activeProjectJobs.get(projectId);
+    if (jobId) {
+      const controller = abortControllers.get(jobId);
+      if (controller) {
+        controller.abort();
+        abortControllers.delete(jobId);
+      }
+      activeProjectJobs.delete(projectId);
+      const job = jobs.get(jobId);
+      if (job) {
+         job.status = 'idle';
+         job.message = 'Stopped by user.';
+      }
+    }
+  },
+
   resetProject(projectId: string) {
-    activeProjectJobs.delete(projectId);
+    this.stopJob(projectId);
   },
 
   async runJob(id: string, projectId: string, sourceId: string, url?: string, manualKnowledge?: string) {
@@ -138,18 +160,20 @@ export const jobManager = {
       // 2. Execution Logic
       if (url) {
         job.status = 'scraping';
-        job.message = 'Deep Crawling & Learning...';
-        const crawler = new CustomCrawler(2000); 
+        const controller = abortControllers.get(id);
+        const crawler = new CustomCrawler(20); // Max 20 pages
         
         await crawler.crawl(
           url, 
-          (msg, current) => {
+          (msg: string, current: number, discovered: number) => {
             job.message = msg;
-            // job.current is managed by processPage callbacks
+            job.totalDiscovered = discovered;
           },
-          async (page) => {
+          async (page: any) => {
+            if (controller?.signal.aborted) throw new Error('STOP_JOB');
             await processPage(page);
-          }
+          },
+          controller?.signal
         );
       }
 

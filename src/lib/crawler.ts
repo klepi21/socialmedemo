@@ -29,7 +29,7 @@ export class CustomCrawler {
     }
   }
 
-  async crawl(baseUrl: string, onProgress?: (msg: string, current: number) => void, onPage?: (result: CrawlResult) => Promise<void>): Promise<CrawlResult[]> {
+  async crawl(baseUrl: string, onProgress?: (msg: string, current: number, discovered: number) => void, onPage?: (result: CrawlResult) => Promise<void>, abortSignal?: AbortSignal): Promise<CrawlResult[]> {
     this.queue = [baseUrl];
     this.visited.clear();
     this.results = [];
@@ -48,7 +48,8 @@ export class CustomCrawler {
       if (this.visited.has(currentUrl)) continue;
       this.visited.add(currentUrl);
 
-      if (onProgress) onProgress(`Crawling: ${currentUrl}`, this.results.length);
+      if (abortSignal?.aborted) throw new Error('ABORTED');
+      if (onProgress) onProgress(`Crawling: ${currentUrl}`, this.results.length, this.queue.length + this.visited.size);
 
       try {
         const response = await axios.get(currentUrl, {

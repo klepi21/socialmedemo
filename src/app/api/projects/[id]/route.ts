@@ -89,8 +89,12 @@ export async function DELETE(req: NextRequest, context: any) {
   try {
     const params = await context.params;
     const id = params?.id;
-    await projectService.resetKnowledge(id);
-    return NextResponse.json({ message: 'Project knowledge wiped successfully' });
+    
+    // Stop any active jobs first
+    jobManager.stopJob(id);
+    
+    await projectService.deleteProject(id);
+    return NextResponse.json({ message: 'Project and all data deleted successfully' });
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
