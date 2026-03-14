@@ -41,7 +41,7 @@ export default function ProjectPage() {
   
   // Dynamic Backend Routing
   const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || ''; 
-  const isRemote = !!BACKEND_URL;
+  const isRemote = BACKEND_URL.startsWith('http'); // Only treat as remote if it's a full URL
   const [loading, setLoading] = useState(true);
   const [trainingJob, setTrainingJob] = useState<any>(null);
   const [stats, setStats] = useState({ vectors: 0, sources: 0 });
@@ -140,6 +140,8 @@ export default function ProjectPage() {
     const { id: projectId } = params as any;
     try {
       const endpoint = isRemote ? `${BACKEND_URL}/train` : '/api/train';
+      console.log(`[TRAIN] Starting job at: ${endpoint} (Remote: ${isRemote})`);
+      
       const res = await fetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -150,10 +152,26 @@ export default function ProjectPage() {
           manualKnowledge: text
         }),
       });
-      const { jobId } = await res.json();
+
+      if (!res.ok) {
+        const text = await res.text();
+        console.error(`[TRAIN ERROR] Status: ${res.status}. Body snippet: ${text.slice(0, 200)}`);
+        throw new Error(`Server returned ${res.status}: ${text.slice(0, 50)}...`);
+      }
+
+      const contentType = res.headers.get('content-type');
+      if (!contentType || !contentType.includes('application/json')) {
+        const text = await res.text();
+        console.error(`[TRAIN ERROR] Expected JSON but got ${contentType}. Body snippet: ${text.slice(0, 200)}`);
+        throw new Error("Server returned non-JSON response. Check if Backend URL is correct.");
+      }
+
+      const data = await res.json();
+      const { jobId } = data;
       monitorJob(jobId);
-    } catch (err) {
-      console.error(err);
+    } catch (err: any) {
+      console.error("[TRAIN FATAL]", err);
+      alert(`Training failed: ${err.message}`);
     }
   };
   const wipeKnowledge = async () => {
@@ -200,11 +218,15 @@ export default function ProjectPage() {
     const url = isRemote ? `${BACKEND_URL}/status/${jobId}` : `/api/train?jobId=${jobId}`;
     const eventSource = new EventSource(url);
     eventSource.onmessage = (event) => {
-      const data = JSON.parse(event.data);
-      setTrainingJob(data);
-      if (data.status === 'success' || data.status === 'error') {
-        eventSource.close();
-        fetchProject();
+      try {
+        const data = JSON.parse(event.data);
+        setTrainingJob(data);
+        if (data.status === 'success' || data.status === 'error') {
+          eventSource.close();
+          fetchProject();
+        }
+      } catch (e) {
+        console.error("MonitorJob JSON parse error:", e, "Raw data:", event.data);
       }
     };
     eventSource.onerror = (err) => {
