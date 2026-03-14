@@ -128,7 +128,7 @@ export const jobManager = {
           }
           
           job.current++;
-          job.progress = Math.min(99, 10 + Math.floor((job.current / (job.total || 50)) * 80));
+          job.progress = Math.min(99, 2 + Math.floor((job.current / 20) * 97)); // Assuming max 20 pages for progress
         } catch (err: any) {
           if (err.message === 'STOP_JOB') throw err;
           console.error(`Job ${id}: Failed to process page ${page.url}:`, err.message);
@@ -145,6 +145,7 @@ export const jobManager = {
           url, 
           (msg, current) => {
             job.message = msg;
+            // job.current is managed by processPage callbacks
           },
           async (page) => {
             await processPage(page);

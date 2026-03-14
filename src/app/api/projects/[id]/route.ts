@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import projectService from '@/lib/project-service';
+import { jobManager } from '@/lib/jobs';
 
 export const dynamic = 'force-dynamic';
 
@@ -28,12 +29,21 @@ export async function GET(req: NextRequest, context: any) {
     const pages = await projectService.getPages(id).catch(() => []);
     const stats = await projectService.getStats(id).catch(() => ({ vectors: 0, sources: 0 }));
 
+    // Step 5: Jobs - Now safe to check as Transformers are dynamic
+    let activeJobId = null;
+    try {
+      const activeJob = jobManager.getJobByProject(id);
+      activeJobId = activeJob?.id || null;
+    } catch(e) {
+      console.warn("Job check failed", e);
+    }
+
     return NextResponse.json({ 
        project, 
        sources, 
        pages, 
        stats,
-       activeJobId: null // Temporarily disabled job status to isolate crash
+       activeJobId
     });
 
   } catch (error: any) {
