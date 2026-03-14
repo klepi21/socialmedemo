@@ -1,6 +1,7 @@
 import axios from 'axios';
 import * as cheerio from 'cheerio';
 import { URL } from 'url';
+import https from 'https';
 
 export class CustomCrawler {
   private visited = new Set<string>();
@@ -35,13 +36,12 @@ export class CustomCrawler {
         onProgress(`Scraping: ${url}`, count, this.visited.size);
         
         const response = await axios.get(url, { 
-          timeout: 15000,
+          timeout: 20000,
           headers: { 
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
-            'Accept-Language': 'en-US,en;q=0.9,el;q=0.8',
           },
-          validateStatus: () => true, // Don't throw on 404/500 so we can log it
+          httpsAgent: new https.Agent({ rejectUnauthorized: false }),
+          validateStatus: () => true,
           maxRedirects: 5
         });
 
@@ -75,10 +75,8 @@ export class CustomCrawler {
         });
 
       } catch (err: any) {
-        console.error(`[CRAWLER] Error on ${url}:`, err.message);
-        if (err.response) {
-          console.error(`[CRAWLER] Server responded with: ${err.response.status}`);
-        }
+        console.error(`[CRAWLER] Error on ${url}:`, err.message || err);
+        if (err.code) console.error(`[CRAWLER] Error Code: ${err.code}`);
       }
     }
 
