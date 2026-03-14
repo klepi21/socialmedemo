@@ -148,7 +148,10 @@ function ChatComponent() {
         }),
       });
 
-      if (!response.ok) throw new Error('Failed to fetch response');
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.details || errorData.error || 'Failed to fetch response');
+      }
 
       const reader = response.body?.getReader();
       const decoder = new TextDecoder();

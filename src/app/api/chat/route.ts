@@ -36,12 +36,19 @@ export async function POST(req: NextRequest) {
 
     // RAG context enhancement: user message + potential service intent
     let context = '';
-    if (projectId) {
-        const intentQuery = `${lastMessage} digital marketing development agency services`;
-        context = await getContext(intentQuery, projectId);
-        if (context && context.length > 3000) {
-            context = context.slice(0, 3000);
-        }
+    try {
+      if (projectId) {
+          console.log(`[CHAT] Fetching RAG context for ${projectId}...`);
+          const intentQuery = `${lastMessage} digital marketing development agency services`;
+          context = await getContext(intentQuery, projectId);
+          if (context && context.length > 3000) {
+              context = context.slice(0, 3000);
+          }
+          console.log(`[CHAT] RAG context fetched: ${context.length} chars`);
+      }
+    } catch (ragErr: any) {
+      console.error(`[CHAT] RAG FAILED (continuing without context):`, ragErr.message);
+      context = ''; 
     }
     
     // 2. Build identity header
@@ -116,6 +123,7 @@ About: ${project?.description || 'General Services'}
         content: (m.content || '').slice(0, 1000),
       }));
 
+    console.log(`[CHAT] Calling Groq with ${sanitizedMessages.length} messages...`);
     const response = await groq.chat.completions.create({
       model: 'qwen/qwen3-32b',
       messages: [
@@ -125,6 +133,7 @@ About: ${project?.description || 'General Services'}
       stream: true,
       temperature: 0.1,
     });
+    console.log(`[CHAT] Groq stream established.`);
 
     const encoder = new TextEncoder();
     let insideThink = false;
