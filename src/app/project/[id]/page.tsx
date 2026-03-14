@@ -2,8 +2,6 @@
 
 import { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
-
-export const dynamic = 'force-dynamic';
 import { Button } from '@/components/ui/Button';
 import { 
   ChevronLeft, 

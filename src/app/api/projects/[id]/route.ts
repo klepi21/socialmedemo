@@ -4,44 +4,45 @@ import { jobManager } from '@/lib/jobs';
 
 export const dynamic = 'force-dynamic';
 
-export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const metaId = `DEBUG_${Date.now()}`;
+export async function GET(req: NextRequest, props: any) {
+  const metaId = `API_${Date.now()}`;
   try {
-    const { id } = await params;
-    console.log(`[${metaId}] Request for info on project: ${id}`);
+    // Next.js 15+ Compatibility Check
+    const context = props || {};
+    const awaitedParams = context.params instanceof Promise ? await context.params : context.params;
+    const id = awaitedParams?.id;
 
-    // Step 1: Check Project
-    const project = await projectService.getProject(id).catch(e => {
-       console.error(`[${metaId}] projectService.getProject FAILED:`, e);
-       throw new Error(`DB_PROJECT_FETCH_FAIL: ${e.message}`);
-    });
+    console.log(`[${metaId}] GET Project Request. ID: ${id || 'undefined'}`);
+
+    if (!id) {
+      return NextResponse.json({ error: 'Missing ID parameter' }, { status: 400 });
+    }
+
+    // Step 1: Project Basic Info
+    console.log(`[${metaId}] Fetching project...`);
+    const project = await projectService.getProject(id);
     
     if (!project) {
-      console.log(`[${metaId}] Project not found: ${id}`);
+      console.log(`[${metaId}] Project NOT FOUND in database for ID: ${id}`);
       return NextResponse.json({ error: 'Project not found' }, { status: 404 });
     }
 
-    // Step 2-4: Sequential fetch to isolate errors
-    console.log(`[${metaId}] Fetching sources...`);
-    const sources = await projectService.getSources(id).catch(e => []);
-    
-    console.log(`[${metaId}] Fetching pages...`);
-    const pages = await projectService.getPages(id).catch(e => []);
-    
-    console.log(`[${metaId}] Fetching stats...`);
-    const stats = await projectService.getStats(id).catch(e => ({ vectors: 0, sources: 0 }));
+    // Step 2-4: Data parts with individual safety
+    console.log(`[${metaId}] Fetching sources, pages, stats...`);
+    const [sources, pages, stats] = await Promise.all([
+      projectService.getSources(id).catch(e => { console.error("sources fail", e); return []; }),
+      projectService.getPages(id).catch(e => { console.error("pages fail", e); return []; }),
+      projectService.getStats(id).catch(e => { console.error("stats fail", e); return { vectors: 0, sources: 0 }; })
+    ]);
 
     // Step 5: Jobs
-    console.log(`[${metaId}] Checking active jobs...`);
     let activeJobId = null;
     try {
       const activeJob = jobManager.getJobByProject(id);
       activeJobId = activeJob?.id || null;
-    } catch(e) {
-      console.warn(`[${metaId}] jobManager.getJobByProject failed (non-critical):`, e);
-    }
+    } catch(e) {}
 
-    console.log(`[${metaId}] All steps completed. Returning data.`);
+    console.log(`[${metaId}] Success. Found project: ${project.name}`);
     return NextResponse.json({ 
       project, 
       sources, 
@@ -49,12 +50,13 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
       stats,
       activeJobId
     });
+
   } catch (error: any) {
-    console.error(`[${metaId}] UNHANDLED ERROR IN API ROUTE:`, error);
+    console.error(`[${metaId}] FATAL API ERROR:`, error);
     return NextResponse.json({ 
-      error: 'CRITICAL_API_FAILURE', 
+      error: 'CRITICAL_ERROR', 
       details: error.message,
-      stack: error.stack?.split('\n').slice(0, 3).join('\n')
+      code: error.code || 'UNKNOWN'
     }, { status: 500 });
   }
 }

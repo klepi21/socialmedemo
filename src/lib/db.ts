@@ -3,18 +3,23 @@ import { createClient } from '@libsql/client';
 const url = process.env.TURSO_DATABASE_URL;
 const authToken = process.env.TURSO_AUTH_TOKEN;
 
-if (process.env.NODE_ENV === 'production' && !url) {
-  console.error("❌ CRITICAL: TURSO_DATABASE_URL is missing in Vercel environment variables.");
+// Lazy client creation to avoid module-level crashes
+let _db: any = null;
+export function getDb() {
+  if (!_db) {
+    _db = createClient({
+      url: url || 'file:socialme.db',
+      authToken: authToken,
+    });
+    console.log(`[DB] Lazy client initialized. Mode: ${url ? 'Cloud' : 'Local'}`);
+  }
+  return _db;
 }
 
-const db = createClient({
-  url: url || 'file:socialme.db',
-  authToken: authToken,
-});
-
-console.log(`[DB] Initialized with URL: ${url ? url.split('://')[0] + '://***' : 'local file'}`);
-
-console.log(`[Turso] Connected to: ${url ? url.replace(/:[^@]+@/, ':***@') : 'local file'}`);
+const db = {
+  execute: async (args: any) => getDb().execute(args),
+  batch: async (args: any, mode?: any) => getDb().batch(args, mode),
+};
 
 let schemaInitialized = false;
 
