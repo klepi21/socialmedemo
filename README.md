@@ -1,44 +1,58 @@
-# 🚀 SocialMe AI: Autonomous Sales Consultant Agent
+# 🚀 SocialMe AI: Autonomous Sales Consultant Agent (Tech Demo)
 
-SocialMe AI is a cutting-edge, white-label platform designed for digital agencies to deploy autonomous AI sales consultants for their clients. It crawls any business website, "learns" its services, pricing, and contact information, and transforms into a high-converting chatbot that can generate professional business proposals in PDF format.
+> **⚠️ DISCLOSURE:** This is an **AI Technology Demonstration**. It showcases the potential of autonomous sales agents. For production environments, we highly recommend integrating **Premium AI Models** (like OpenAI o1/GPT-4o or specialized Anthropic models) for enhanced reasoning, accuracy, and handling complex business logic.
 
-![Status: Production Ready](https://img.shields.io/badge/Status-Production--Ready-green?style=for-the-badge)
-![Next.js](https://img.shields.io/badge/Next.js-15%2B-black?style=for-the-badge&logo=next.js)
-![Turso](https://img.shields.io/badge/Database-Turso%20(SQLite)-000?style=for-the-badge&logo=sqlite)
+SocialMe AI is a cutting-edge, white-label platform designed for digital agencies to deploy autonomous AI sales consultants for their clients. It crawls any business website, "learns" its services, pricing, and contact information, and transforms into a high-converting chatbot that generates professional business proposals automatically.
+
+![Status: Tech Demo](https://img.shields.io/badge/Status-Tech--Demo-blue?style=for-the-badge)
+![Architecture: Hybrid](https://img.shields.io/badge/Architecture-Vercel--+--VPS-orange?style=for-the-badge)
+
+---
+
+## 🏗️ System Architecture
+
+The project is split into two main components to balance high-speed UI delivery and heavy AI processing:
+
+### 🎨 Frontend (Next.js - Vercel)
+The user-facing application handles the dashboard, real-time chat interface, and lead management.
+- **Next.js 15+ (App Router)**: Fast, serverless-ready frontend.
+- **Tailwind CSS 4**: Premium glassmorphism design.
+- **Voice Synthesis**: Integrated with **ElevenLabs** for zero-latency Greek speech.
+- **Leads Center**: A dedicated dashboard for business owners to view captured leads and export proposals.
+- **Proposal Engine**: Client-side PDF generation using `jsPDF` and `html2canvas`.
+
+### ⚙️ Dedicated AI Backend (Node.js - VPS)
+The "Heavy Lifting" engine designed to run persistantly on a dedicated server to handle resource-intensive tasks.
+- **Custom Crawler**: Distributed crawler with Proxy support and browser-spoofing to bypass scraping blocks.
+- **Vectorization Engine**: Local RAG system using `@xenova/transformers`.
+- **Job Manager**: Handles long-running crawling and training tasks with PM2 process management.
+- **IPv4 Logic**: Specialized network handling to resolve connectivity issues between VPS and legacy servers.
+
+---
+
+## 💻 Backend Server Requirements (Best Specs)
+
+To run the local embedding models and high-speed crawling smoothly, the following specs are recommended for your VPS:
+
+| Feature | Minimum (Demo) | Recommended (Pro) |
+| :--- | :--- | :--- |
+| **CPU** | 1 vCore | 2-4 vCores |
+| **RAM** | 1GB (Requires OpenAI Fallback) | **4GB+** (To run Transformers.js locally) |
+| **OS** | Ubuntu 22.04 LTS | Ubuntu 22.04 LTS |
+| **Storage** | 10GB SSD | 20GB+ NVMe SSD |
+| **Network** | Shared IPv4 | **Dedicated IPv4** (Critical for scraping) |
+
+> **Note:** On 1GB RAM instances, the local vectorization model might experience high latency. In such cases, the system should be configured to use external embedding APIs (like OpenAI `text-embedding-3-small`).
 
 ---
 
 ## ✨ Key Features
 
-- **🌐 Instant Web Knowledge**: Provide a URL, and our custom crawler (Axios/Cheerio) will deep-scan the site, extracting text, contact info (Ld+JSON), and quick actions.
-- **🧠 Local Server Embeddings**: Uses `@xenova/transformers` (MiniLM-L6-v2) to generate vector embeddings locally on the server—no high-cost third-party embedding APIs needed.
-- **💬 AI Sales Consultant**: A premium, voice-enabled chat interface that uses **Groq (Qwen-3)** for ultra-low latency, human-like sales conversations.
-- **📊 Lead Analysis & PDF Proposing**: The AI automatically detects when a lead is "hot," extracts contact details, and compiles a professional Greek-language business proposal (PDF) using `jsPDF`.
-- **🎙️ Reassuring Voice (TTS)**: Integrated with **ElevenLabs** for zero-latency, mature, and professional Greek speech synthesis.
-- **🛡️ Secure Training Dashboard**: A sleek, dark-mode agency dashboard to manage multiple clients, sync knowledge bases, and monitor training progress.
-
----
-
-## 🛠️ The Tech Stack
-
-### Frontend & Core
-- **Next.js 15+**: App Router for server-side rendering and API routes.
-- **React 19**: Utilizing Concurrent Mode and Server Components.
-- **Tailwind CSS 4**: Modern, premium styling with glassmorphism effects.
-- **Lucide React**: High-quality iconography.
-
-### Database & Storage
-- **Turso (LibSQL)**: Distributed SQLite for edge-ready performance and near-zero latency.
-- **Vector Search**: Manual Cosine Similarity implementation for RAG (Retrieval-Augmented Generation).
-
-### AI & Machine Learning
-- **Groq API**: Powering the chat logic with the latest `qwen/qwen3-32b` model for blazing fast responses.
-- **Transformers.js**: Running ONNX models on the server for local vectorization.
-- **ElevenLabs API**: Premium Text-to-Speech for the AI Consultant's voice.
-
-### Scraping & RAG
-- **Custom Crawler**: Built with `Axios` and `Cheerio` to bypass heavy JS requirements and extract meaningful data from any domain.
-- **jsPDF / html2canvas**: For client-side generation of beautiful business proposals.
+- **🌐 Browser-Identity Scraper**: A specialized crawler that bypasses bot-detection to "read" any business website.
+- **🧠 Hybrid RAG**: Flexible knowledge base that can run locally or via Cloud APIs.
+- **🎙️ Voice-First Engagement**: Full speech-to-speech interaction for mobile-first users.
+- **📊 Automatic Lead Proposing**: No more manual follow-ups. The AI extracts a lead's needs and creates a PDF proposal ready for the business owner.
+- **⚖️ Legal/Contact Awareness**: Unlike generic bots, this agent focuses on exact contact data and verified service pricing.
 
 ---
 
@@ -46,50 +60,20 @@ SocialMe AI is a cutting-edge, white-label platform designed for digital agencie
 
 ### 1. Requirements
 - Node.js 20+
-- A Turso Database (get a free one at [turso.tech](https://turso.tech))
-- Groq API Key
-- ElevenLabs API Key
+- Turso Database (LibSQL)
+- Groq API Key (Fast reasoning)
+- ElevenLabs API Key (Premium Greek Voice)
+- OpenAI API Key (For embedding fallback on low-end servers)
 
-### 2. Installation
-```bash
-git clone https://github.com/klepi21/socialmedemo.git
-cd socialme
-npm install
-```
-
-### 3. Environment Variables
-Create a `.env.local` file:
+### 2. Environment Setup (VPS)
 ```env
-# Database
-TURSO_DATABASE_URL=libsql://your-db-name.turso.io
+BACKEND_PORT=3001
+TURSO_DATABASE_URL=libsql://your-db.turso.io
 TURSO_AUTH_TOKEN=your_token
-
-# AI APIs
-GROQ_API_KEY=your_groq_key
-ELEVENLABS_API_KEY=your_elevenlabs_key
-ELEVENLABS_VOICE_ID=EXAVITQu4vr4xnSDxMaL
-
-# App Settings
-NEXT_PUBLIC_APP_URL=http://localhost:3000
+OPENAI_API_KEY=sk-...
 ```
-
-### 4. Run Locally
-```bash
-npm run dev
-```
-Open [http://localhost:3000](http://localhost:3000) to see your Agency Dashboard.
-
----
-
-## 📖 How to Use
-
-1. **Create a Project**: Add your client's name and a brief description.
-2. **Add Knowledge**: Paste the client's website URL (e.g., `https://example.com`).
-3. **Sync Knowledge**: Click the **Sync** button. The crawler will visit the site, and the AI will vectorize the content for its "brain."
-4. **Launch AI**: Once training is complete, the "Launch AI Consultant" button will activate.
-5. **Chat & Generate**: Chat with the agent. Once it collects the client's name and email, it will offer a "Complete & Generate PDF" option to close the lead.
 
 ---
 
 ## 📄 License
-MIT License. Created with ❤️ for the Digital Agency community.
+MIT License. Created by the community, for the Digital Agency industry.
