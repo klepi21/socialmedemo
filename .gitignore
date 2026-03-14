@@ -39,3 +39,19 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# SQLite
+*.db
+*.db-journal
+*.db-shm
+*.db-wal
+
+# Local logs
+*.log
+chat_errors.log
+all_chunks.txt
+
+# Debug scripts
+debug-*.ts
+test-*.ts
+test-*.js

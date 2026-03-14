@@ -1,26 +1,131 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
-@theme inline {
+@theme {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-primary: var(--primary);
+  --color-glass-bg: var(--glass-bg);
+  --color-glass-border: var(--glass-border);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+:root {
+  --background: #050505;
+  --foreground: #ffffff;
+  --primary: #3b82f6;
+  --primary-glow: rgba(59, 130, 246, 0.3);
+  --glass-bg: rgba(255, 255, 255, 0.05);
+  --glass-border: rgba(255, 255, 255, 0.1);
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  overflow-x: hidden;
+}
+
+/* Glassmorphism utility */
+.glass {
+  background: var(--glass-bg);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid var(--glass-border);
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+}
+
+/* Premium Gradient Text */
+.gradient-text {
+  background: linear-gradient(135deg, #ffffff 0%, #a5a5a5 100%);
+  background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+/* Glowing Border Animation */
+@keyframes border-glow {
+  0% { border-color: var(--glass-border); }
+  50% { border-color: var(--primary); }
+  100% { border-color: var(--glass-border); }
+}
+
+.glow-on-hover:hover {
+  animation: border-glow 2s infinite ease-in-out;
+}
+
+/* Voice Orb Animations */
+@keyframes orb-pulse {
+  0% { transform: scale(1); opacity: 0.8; }
+  50% { transform: scale(1.05); opacity: 1; }
+  100% { transform: scale(1); opacity: 0.8; }
+}
+
+@keyframes orb-morph {
+  0% { border-radius: 42% 58% 70% 30% / 45% 45% 55% 55%; }
+  25% { border-radius: 73% 27% 23% 77% / 55% 55% 45% 45%; }
+  50% { border-radius: 37% 63% 51% 49% / 30% 30% 70% 70%; }
+  75% { border-radius: 32% 68% 35% 65% / 53% 53% 47% 47%; }
+  100% { border-radius: 42% 58% 70% 30% / 45% 45% 55% 55%; }
+}
+
+@keyframes orb-spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 0.5; }
+  50% { opacity: 1; }
+}
+
+.voice-orb {
+  width: 280px;
+  height: 280px;
+  position: relative;
+  border-radius: 50%; /* Make it a circle by default */
+  background: linear-gradient(45deg, #3b82f6, #60a5fa, #ffffff, #2563eb);
+  background-size: 400% 400%;
+  filter: blur(4px);
+  box-shadow: 0 0 100px rgba(59, 130, 246, 0.6);
+  transition: all 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+  border: 4px solid rgba(255, 255, 255, 0.2);
+  display: block;
+}
+
+.voice-orb.listening {
+  animation: orb-morph 8s infinite alternate, orb-pulse 4s infinite ease-in-out;
+  background: linear-gradient(45deg, #1e3a8a, #2563eb, #3b82f6);
+}
+
+.voice-orb.thinking {
+  animation: orb-morph 3s infinite alternate, orb-spin 4s infinite linear;
+  background: linear-gradient(45deg, #3b82f6, #ffffff, #60a5fa);
+  transform: scale(0.95);
+  filter: blur(6px);
+}
+
+.voice-orb.speaking {
+  animation: orb-morph 2s infinite alternate, orb-pulse 0.8s infinite ease-in-out;
+  background: linear-gradient(45deg, #3b82f6, #93c5fd, #ffffff, #60a5fa);
+  transform: scale(1.05);
+  box-shadow: 0 0 120px rgba(59, 130, 246, 0.7);
+}
+
+.orb-container {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3rem;
+  width: 100%;
+  min-height: 400px;
+}
+
+.voice-status-text {
+  font-size: 1.25rem;
+  font-weight: 500;
+  color: #0f172a; /* slate-900 for light background */
+  letter-spacing: 0.05em;
+  animation: pulse 2s infinite;
+  text-align: center;
 }
