@@ -64,7 +64,12 @@ export default function ProjectPage() {
     if (!id) return;
     
     try {
+      setLoading(true);
       const res = await fetch(`/api/projects/${id}`);
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}));
+        throw new Error(errorData.error || `Failed to fetch project (Status: ${res.status})`);
+      }
       const data = await res.json();
       setProject(data.project);
       setSources(data.sources);
@@ -72,12 +77,12 @@ export default function ProjectPage() {
       setStats(data.stats);
       setSystemPrompt(data.project.system_prompt || '');
       
-      // Auto-resume tracker if a job is active
       if (data.activeJobId) {
         monitorJob(data.activeJobId);
       }
-    } catch (err) {
-      console.error(err);
+    } catch (err: any) {
+      console.error('Fetch project error:', err);
+      setAuthError(err.message); // Reusing authError for general page error
     } finally {
       setLoading(false);
     }
@@ -155,7 +160,18 @@ export default function ProjectPage() {
     </div>
   );
 
-  if (!project) return <div className="min-h-screen bg-[#030303] text-white flex items-center justify-center">Project not found.</div>;
+  if (!project) return (
+    <div className="min-h-screen bg-[#030303] text-white flex flex-col items-center justify-center gap-4">
+      <AlertCircle size={40} className="text-red-500" />
+      <p className="text-xl font-bold">Project not found or error loading</p>
+      {authError && (
+        <div className="bg-red-500/10 border border-red-500/20 p-4 rounded-xl max-w-md text-center">
+          <p className="text-red-500 text-sm font-mono">{authError}</p>
+        </div>
+      )}
+      <Button variant="glass" onClick={() => window.location.href = '/'}>Back to Dashboard</Button>
+    </div>
+  );
 
   const handleAuth = (e: React.FormEvent) => {
     e.preventDefault();

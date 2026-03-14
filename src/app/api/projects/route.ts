@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import projectService from '@/lib/project-service';
 
+export const dynamic = 'force-dynamic';
+
 export async function GET() {
   try {
     const projects = await projectService.listProjects();

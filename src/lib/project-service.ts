@@ -26,11 +26,14 @@ const projectService = {
 
   // Get project by ID
   async getProject(id: string): Promise<Project | null> {
+    console.log(`[DB] Querying project with ID: ${id}`);
     const rs = await db.execute({
       sql: 'SELECT * FROM projects WHERE id = ?',
       args: [id]
     });
-    return (rs.rows[0] as unknown as Project) || null;
+    const project = (rs.rows[0] as unknown as Project) || null;
+    console.log(`[DB] Result for ${id}: ${project ? 'found' : 'not found'}`);
+    return project;
   },
 
   // List all projects

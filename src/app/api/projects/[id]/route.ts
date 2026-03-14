@@ -2,9 +2,12 @@ import { NextRequest, NextResponse } from 'next/server';
 import projectService from '@/lib/project-service';
 import { jobManager } from '@/lib/jobs';
 
+export const dynamic = 'force-dynamic';
+
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await params;
+    console.log(`[API] Fetching project details for ID: ${id}`);
     const project = await projectService.getProject(id);
     if (!project) return NextResponse.json({ error: 'Project not found' }, { status: 404 });
 
