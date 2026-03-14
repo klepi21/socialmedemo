@@ -6,11 +6,16 @@ import projectService from '@/lib/project-service';
 export async function POST(req: NextRequest) {
   try {
     const { messages, projectId } = await req.json();
+    console.log(`[LEAD ANALYZE] Starting analysis. ProjectId: ${projectId}, Messages: ${messages?.length}`);
 
     // 1. Identify the project theme to fetch relevant "brain" context
     const userMessages = messages.filter((m: any) => m.role === 'user').map((m: any) => m.content).join(' ');
-    // Default to a generic context search if no project ID is provided in lead analysis
-    const agencyContext = await getContext(userMessages, projectId || ''); 
+    let agencyContext = '';
+    try {
+      agencyContext = await getContext(userMessages, projectId || '');
+    } catch (ragErr: any) {
+      console.warn('[LEAD ANALYZE] RAG context failed:', ragErr.message);
+    }
 
     const analysisPrompt = `
 Analyze the following conversation between a Sales Consultant and a potential client.
@@ -58,28 +63,43 @@ OUTPUT FORMAT (JSON):
 Return ONLY the JSON.
 `;
 
+    console.log('[LEAD ANALYZE] Calling Groq for analysis...');
     const response = await groq.chat.completions.create({
       model: 'qwen/qwen3-32b',
       messages: [{ role: 'system', content: analysisPrompt }],
       response_format: { type: 'json_object' }
     });
 
-    const result = JSON.parse(response.choices[0].message.content || '{}');
+    const rawContent = response.choices[0].message.content || '{}';
+    console.log('[LEAD ANALYZE] Raw AI response:', rawContent.slice(0, 200));
+    
+    // Clean thinking blocks if present
+    const cleanContent = rawContent.replace(/<think>[\s\S]*?<\/think>/g, '').trim();
+    const result = JSON.parse(cleanContent);
+    console.log('[LEAD ANALYZE] Parsed result. client_name:', result.client_name, 'email:', result.email);
 
-    // Save to Database
-    if (result.client_name) {
-      await projectService.saveLead(
+    // Save to Database - ALWAYS save if we have any useful data
+    const clientName = result.client_name || 'Unknown';
+    const email = result.email || '';
+    const phone = result.phone || '';
+    
+    console.log(`[LEAD ANALYZE] Saving lead: ${clientName} / ${email} / ${phone}`);
+    try {
+      const leadId = await projectService.saveLead(
         projectId || null,
-        result.client_name,
-        result.email || '',
-        result.phone || '',
+        clientName,
+        email,
+        phone,
         result
       );
+      console.log(`[LEAD ANALYZE] ✅ Lead saved successfully! ID: ${leadId}`);
+    } catch (saveErr: any) {
+      console.error(`[LEAD ANALYZE] ❌ FAILED to save lead:`, saveErr.message);
     }
 
     return NextResponse.json(result);
   } catch (error: any) {
-    console.error('Lead analysis error:', error);
+    console.error('[LEAD ANALYZE] FATAL ERROR:', error.message);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
