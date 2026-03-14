@@ -1,17 +1,29 @@
 import { createClient } from '@libsql/client';
 import dotenv from 'dotenv';
-dotenv.config();
+import path from 'path';
 
-const url = process.env.TURSO_DATABASE_URL;
-const authToken = process.env.TURSO_AUTH_TOKEN;
+// Load .env explicitly from the current directory
+dotenv.config({ path: path.resolve(process.cwd(), '.env') });
+
+const rawUrl = process.env.TURSO_DATABASE_URL || '';
+const url = rawUrl.trim().replace(/[\r\n]/g, '');
+const authToken = (process.env.TURSO_AUTH_TOKEN || '').trim().replace(/[\r\n]/g, '');
+
+if (!url) {
+  console.error("[DB] CRITICAL: TURSO_DATABASE_URL is missing in .env!");
+}
+if (!authToken && !url.startsWith('file:')) {
+  console.error("[DB] CRITICAL: TURSO_AUTH_TOKEN is missing in .env!");
+}
 
 let _db: any = null;
 
 export function getDb() {
   if (!_db) {
+    console.log(`[DB] Connecting to Turso: ${url.slice(0, 20)}...`);
     _db = createClient({
-      url: process.env.TURSO_DATABASE_URL || 'file:socialme.db',
-      authToken: process.env.TURSO_AUTH_TOKEN,
+      url: url || 'file:socialme.db',
+      authToken: authToken,
     });
   }
   return _db;

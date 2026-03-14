@@ -157,13 +157,21 @@ export const jobManager = {
       
     } catch (error: any) {
       if (error.message === 'ABORTED') {
-          console.log(`Job ${id} stopped.`);
+          console.log(`[JOBS] Job ${id} was aborted.`);
           return;
       }
-      console.error('Job Error:', error);
+      console.error(`[JOBS] FATAL ERROR in job ${id}:`, error.message);
+      if (error.message.includes('migration')) {
+        console.error("[JOBS] HINT: This is likely a Database Connection issue. Check your TURSO_AUTH_TOKEN and URL.");
+      }
+      
       job.status = 'error';
       job.message = error.message;
-      await db.execute({ sql: "UPDATE projects SET status = 'error' WHERE id = ?", args: [projectId] });
+      try {
+        await db.execute({ sql: "UPDATE projects SET status = 'error' WHERE id = ?", args: [projectId] });
+      } catch (dbErr: any) {
+        console.error("[JOBS] Could not update project status in DB:", dbErr.message);
+      }
     }
   }
 };

@@ -1,10 +1,13 @@
+import dotenv from 'dotenv';
+import path from 'path';
+
+// Load .env at the very top
+dotenv.config({ path: path.resolve(process.cwd(), '.env') });
+
 import express from 'express';
 import cors from 'cors';
-import dotenv from 'dotenv';
 import { jobManager } from './jobs';
 import db from './db';
-
-dotenv.config();
 
 const app = express();
 const PORT = process.env.BACKEND_PORT || 3001;
