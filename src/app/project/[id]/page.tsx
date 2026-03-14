@@ -38,6 +38,10 @@ export default function ProjectPage() {
   const [project, setProject] = useState<Project | null>(null);
   const [sources, setSources] = useState<Source[]>([]);
   const [pages, setPages] = useState<any[]>([]);
+  
+  // Dynamic Backend Routing
+  const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || ''; 
+  const isRemote = !!BACKEND_URL;
   const [loading, setLoading] = useState(true);
   const [trainingJob, setTrainingJob] = useState<any>(null);
   const [stats, setStats] = useState({ vectors: 0, sources: 0 });
@@ -135,7 +139,8 @@ export default function ProjectPage() {
   const startTraining = async (sourceId?: string, url?: string, text?: string) => {
     const { id: projectId } = params as any;
     try {
-      const res = await fetch('/api/train', {
+      const endpoint = isRemote ? `${BACKEND_URL}/train` : '/api/train';
+      const res = await fetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
@@ -156,7 +161,18 @@ export default function ProjectPage() {
     setShowWipeConfirm(false);
     const id = params?.id as string;
     try {
+      // 1. Wipe DB (always local API to maintain DB security)
       await fetch(`/api/projects/${id}/wipe`, { method: 'POST' });
+      
+      // 2. If remote, ensure we tell the VPS to stop as well
+      if (isRemote) {
+        await fetch(`${BACKEND_URL}/stop`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ projectId: id })
+        }).catch(e => console.warn("Could not stop remote job", e));
+      }
+
       setPages([]);
       setSources([]);
       setStats({ vectors: 0, sources: 0 });
@@ -181,7 +197,8 @@ export default function ProjectPage() {
   };
 
   const monitorJob = (jobId: string) => {
-    const eventSource = new EventSource(`/api/train?jobId=${jobId}`);
+    const url = isRemote ? `${BACKEND_URL}/status/${jobId}` : `/api/train?jobId=${jobId}`;
+    const eventSource = new EventSource(url);
     eventSource.onmessage = (event) => {
       const data = JSON.parse(event.data);
       setTrainingJob(data);
@@ -192,8 +209,6 @@ export default function ProjectPage() {
     };
     eventSource.onerror = (err) => {
       console.error('SSE Error:', err);
-      // Don't close immediately, the browser will retry. 
-      // But if project status is error, we might want to know.
     };
   };
 
