@@ -93,6 +93,11 @@ export default function Dashboard() {
             <Button variant="glass" className="justify-start gap-4 h-12 text-blue-400 border-blue-500/20 bg-blue-500/5">
               <LayoutDashboard size={18} /> Dashboard
             </Button>
+            <Button variant="glass" className="justify-start gap-4 h-12 text-gray-400 hover:text-white border-transparent"
+              onClick={() => window.location.href = '/leads'}
+            >
+              <FileText size={18} /> Leads Center
+            </Button>
             <Button variant="glass" className="justify-start gap-4 h-12 text-gray-400 hover:text-white border-transparent">
               <Layers size={18} /> All Projects
             </Button>
