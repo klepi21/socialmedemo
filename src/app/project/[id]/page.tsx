@@ -259,14 +259,22 @@ export default function ProjectPage() {
               <p className="text-gray-500 text-sm">Namespace: {project.namespace}</p>
             </div>
           </div>
-          <Button 
-            variant="primary" 
-            className="gap-2 h-14 px-8 shadow-2xl shadow-blue-600/20"
-            onClick={() => window.location.href = `/chat?project=${project.id}`}
-          >
-            <MessageSquare size={20} />
-            Launch AI Consultant
-          </Button>
+          <div className="flex flex-col items-end gap-2">
+            <Button 
+              variant="primary" 
+              className="gap-2 h-14 px-8 shadow-2xl shadow-blue-600/20 disabled:opacity-50 disabled:grayscale"
+              disabled={stats.sources === 0}
+              onClick={() => window.location.href = `/chat?project=${project.id}`}
+            >
+              <MessageSquare size={20} />
+              Launch AI Consultant
+            </Button>
+            {stats.sources === 0 && (
+              <span className="text-[10px] text-yellow-500 font-bold uppercase tracking-tighter animate-pulse">
+                Train the AI first to chat
+              </span>
+            )}
+          </div>
         </header>
 
         {/* AI Configuration Section */}

@@ -2,12 +2,13 @@ import { NextRequest, NextResponse } from 'next/server';
 import projectService from '@/lib/project-service';
 import { jobManager } from '@/lib/jobs';
 
-export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+export async function POST(req: NextRequest, context: any) {
   try {
-    const { id } = await params;
+    const params = await context.params;
+    const id = params?.id;
     
     // 1. Update DB to idle
-    projectService.updateProjectStatus(id, 'idle');
+    await projectService.updateProjectStatus(id, 'idle');
     
     // 2. Clear job manager tracking for this project
     jobManager.resetProject(id);
