@@ -5,17 +5,24 @@ import { jobManager } from '@/lib/jobs';
 export const dynamic = 'force-dynamic';
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const metaId = `API_GET_${Date.now()}`;
   try {
     const { id } = await params;
-    console.log(`[API] Fetching project details for ID: ${id}`);
+    console.log(`[${metaId}] Fetching project details for ID: ${id}`);
     const project = await projectService.getProject(id);
-    if (!project) return NextResponse.json({ error: 'Project not found' }, { status: 404 });
+    if (!project) {
+      console.log(`[${metaId}] Project not found for ID: ${id}`);
+      return NextResponse.json({ error: 'Project not found' }, { status: 404 });
+    }
 
-    const sources = await projectService.getSources(id);
-    const pages = await projectService.getPages(id);
-    const stats = await projectService.getStats(id);
+    console.log(`[${metaId}] Found project, fetching related data...`);
+    const [sources, pages, stats] = await Promise.all([
+      projectService.getSources(id),
+      projectService.getPages(id),
+      projectService.getStats(id)
+    ]);
     
-    // Check for active training jobs to resume UI state
+    console.log(`[${metaId}] Success. Sources: ${sources.length}, Pages: ${pages.length}`);
     const activeJob = jobManager.getJobByProject(id);
 
     return NextResponse.json({ 
@@ -26,7 +33,12 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
       activeJobId: activeJob?.id || null 
     });
   } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    console.error(`[${metaId}] CRASH:`, error);
+    return NextResponse.json({ 
+      error: 'Internal Server Error', 
+      details: error.message,
+      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined 
+    }, { status: 500 });
   }
 }
 
