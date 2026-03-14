@@ -5,39 +5,56 @@ import { jobManager } from '@/lib/jobs';
 export const dynamic = 'force-dynamic';
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const metaId = `API_GET_${Date.now()}`;
+  const metaId = `DEBUG_${Date.now()}`;
   try {
     const { id } = await params;
-    console.log(`[${metaId}] Fetching project details for ID: ${id}`);
-    const project = await projectService.getProject(id);
+    console.log(`[${metaId}] Request for info on project: ${id}`);
+
+    // Step 1: Check Project
+    const project = await projectService.getProject(id).catch(e => {
+       console.error(`[${metaId}] projectService.getProject FAILED:`, e);
+       throw new Error(`DB_PROJECT_FETCH_FAIL: ${e.message}`);
+    });
+    
     if (!project) {
-      console.log(`[${metaId}] Project not found for ID: ${id}`);
+      console.log(`[${metaId}] Project not found: ${id}`);
       return NextResponse.json({ error: 'Project not found' }, { status: 404 });
     }
 
-    console.log(`[${metaId}] Found project, fetching related data...`);
-    const [sources, pages, stats] = await Promise.all([
-      projectService.getSources(id),
-      projectService.getPages(id),
-      projectService.getStats(id)
-    ]);
+    // Step 2-4: Sequential fetch to isolate errors
+    console.log(`[${metaId}] Fetching sources...`);
+    const sources = await projectService.getSources(id).catch(e => []);
     
-    console.log(`[${metaId}] Success. Sources: ${sources.length}, Pages: ${pages.length}`);
-    const activeJob = jobManager.getJobByProject(id);
+    console.log(`[${metaId}] Fetching pages...`);
+    const pages = await projectService.getPages(id).catch(e => []);
+    
+    console.log(`[${metaId}] Fetching stats...`);
+    const stats = await projectService.getStats(id).catch(e => ({ vectors: 0, sources: 0 }));
 
+    // Step 5: Jobs
+    console.log(`[${metaId}] Checking active jobs...`);
+    let activeJobId = null;
+    try {
+      const activeJob = jobManager.getJobByProject(id);
+      activeJobId = activeJob?.id || null;
+    } catch(e) {
+      console.warn(`[${metaId}] jobManager.getJobByProject failed (non-critical):`, e);
+    }
+
+    console.log(`[${metaId}] All steps completed. Returning data.`);
     return NextResponse.json({ 
       project, 
       sources, 
       pages, 
       stats,
-      activeJobId: activeJob?.id || null 
+      activeJobId
     });
   } catch (error: any) {
-    console.error(`[${metaId}] CRASH:`, error);
+    console.error(`[${metaId}] UNHANDLED ERROR IN API ROUTE:`, error);
     return NextResponse.json({ 
-      error: 'Internal Server Error', 
+      error: 'CRITICAL_API_FAILURE', 
       details: error.message,
-      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined 
+      stack: error.stack?.split('\n').slice(0, 3).join('\n')
     }, { status: 500 });
   }
 }

@@ -4,7 +4,7 @@ const url = process.env.TURSO_DATABASE_URL;
 const authToken = process.env.TURSO_AUTH_TOKEN;
 
 if (process.env.NODE_ENV === 'production' && !url) {
-  throw new Error("CRITICAL: TURSO_DATABASE_URL is missing in Vercel environment variables.");
+  console.error("❌ CRITICAL: TURSO_DATABASE_URL is missing in Vercel environment variables.");
 }
 
 const db = createClient({

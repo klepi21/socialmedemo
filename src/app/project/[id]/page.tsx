@@ -2,6 +2,8 @@
 
 import { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
+
+export const dynamic = 'force-dynamic';
 import { Button } from '@/components/ui/Button';
 import { 
   ChevronLeft, 
@@ -99,7 +101,7 @@ export default function ProjectPage() {
 
   const addSource = async () => {
     if (!newSource.content) return;
-    const { id } = params as { id: string };
+    const { id } = params as any;
     try {
       await fetch(`/api/projects/${id}`, {
         method: 'POST',
@@ -114,7 +116,7 @@ export default function ProjectPage() {
   };
 
   const startTraining = async (sourceId?: string, url?: string, text?: string) => {
-    const { id: projectId } = params as { id: string };
+    const { id: projectId } = params as any;
     try {
       const res = await fetch('/api/train', {
         method: 'POST',
@@ -135,7 +137,7 @@ export default function ProjectPage() {
   const wipeKnowledge = async () => {
     setIsWiping(true);
     setShowWipeConfirm(false);
-    const { id } = params as { id: string };
+    const { id } = params as any;
     try {
       await fetch(`/api/projects/${id}`, { method: 'DELETE' });
       await fetchProject();
