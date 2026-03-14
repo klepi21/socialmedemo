@@ -54,24 +54,28 @@ To run the local embedding models and high-speed crawling smoothly, the followin
 - **📊 Automatic Lead Proposing**: No more manual follow-ups. The AI extracts a lead's needs and creates a PDF proposal ready for the business owner.
 - **⚖️ Legal/Contact Awareness**: Unlike generic bots, this agent focuses on exact contact data and verified service pricing.
 
----
+## 🔑 Environment Variables
 
-## 🚀 Getting Started
+The project requires several keys for AI and Database services. **Groq** handles the blazingly fast reasoning using the **Qwen-3** model, while **ElevenLabs** provides the premium Greek voice.
 
-### 1. Requirements
-- Node.js 20+
-- Turso Database (LibSQL)
-- Groq API Key (Fast reasoning)
-- ElevenLabs API Key (Premium Greek Voice)
-- OpenAI API Key (For embedding fallback on low-end servers)
+### Frontend (.env.local - Vercel)
+| Variable | Description |
+| :--- | :--- |
+| `TURSO_DATABASE_URL` | Your Turso DB URL (`libsql://...`) |
+| `TURSO_AUTH_TOKEN` | Turso Auth Token |
+| `GROQ_API_KEY` | **Groq API Key** (Used for Qwen-3 chat & analysis) |
+| `ELEVENLABS_API_KEY` | **ElevenLabs API Key** (Used for TTS) |
+| `ELEVENLABS_VOICE_ID` | The ID for the Greek Professional Voice |
+| `NEXT_PUBLIC_BACKEND_URL` | The HTTP URL of your VPS (e.g., `http://1.2.3.4:3001`) |
 
-### 2. Environment Setup (VPS)
-```env
-BACKEND_PORT=3001
-TURSO_DATABASE_URL=libsql://your-db.turso.io
-TURSO_AUTH_TOKEN=your_token
-OPENAI_API_KEY=sk-...
-```
+### AI Backend (.env - VPS)
+| Variable | Description |
+| :--- | :--- |
+| `BACKEND_PORT` | Port the backend listens on (Default: `3001`) |
+| `TURSO_DATABASE_URL` | Same as Frontend (for job syncing) |
+| `TURSO_AUTH_TOKEN` | Same as Frontend |
+| `GROQ_API_KEY` | For potential server-side analysis |
+| `OPENAI_API_KEY` | Used as a fallback for high-quality Embeddings |
 
 ---
 
