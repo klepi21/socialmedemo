@@ -19,23 +19,29 @@ const FALLBACK_PROMPT = `
 `;
 
 export async function POST(req: NextRequest) {
-  let projectId = undefined;
+  let projectId: string | undefined = undefined;
   let lastMessage = '';
 
   try {
     const body = await req.json();
-    const messages = body.messages;
-    lastMessage = body.lastMessage;
     projectId = body.projectId;
+    const messages = body.messages || [];
+    lastMessage = body.lastMessage || '';
 
     // 1. Get Project Data
     const project = projectId ? await projectService.getProject(projectId) : null;
+    if (projectId && !project) {
+        console.warn(`[CHAT] Project ${projectId} requested but not found in DB.`);
+    }
 
     // RAG context enhancement: user message + potential service intent
-    const intentQuery = `${lastMessage} digital marketing development agency services`;
-    let context = await getContext(intentQuery, projectId);
-    if (context && context.length > 3000) {
-      context = context.slice(0, 3000);
+    let context = '';
+    if (projectId) {
+        const intentQuery = `${lastMessage} digital marketing development agency services`;
+        context = await getContext(intentQuery, projectId);
+        if (context && context.length > 3000) {
+            context = context.slice(0, 3000);
+        }
     }
     
     // 2. Build identity header
