@@ -18,8 +18,11 @@ export async function getContext(query: string, projectId: string) {
 
   const queryEmbedding = await getLocalEmbedding(query);
 
-  const stmt = db.prepare('SELECT text, vector FROM embeddings WHERE project_id = ?');
-  const rows = stmt.all(projectId) as { text: string; vector: string }[];
+  const rs = await db.execute({
+    sql: 'SELECT text, vector FROM embeddings WHERE project_id = ?',
+    args: [projectId]
+  });
+  const rows = rs.rows as unknown as { text: string; vector: string }[];
 
   const bookingKeywords = ['ραντεβου', 'κλεισω', 'πως', 'που', 'βρισκεται', 'τηλεφωνο', 'επικοινωνια', 'email', 'book', 'appointment', 'address', 'location', 'θελω', 'μπορω'];
   const isBookingQuery = bookingKeywords.some(k => query.toLowerCase().includes(k));
