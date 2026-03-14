@@ -67,8 +67,17 @@ export default function ProjectPage() {
       setLoading(true);
       const res = await fetch(`/api/projects/${id}`);
       if (!res.ok) {
-        const errorData = await res.json().catch(() => ({}));
-        throw new Error(errorData.error || `Failed to fetch project (Status: ${res.status})`);
+        const contentType = res.headers.get('content-type');
+        let errorMessage = `Server Error (Status: ${res.status})`;
+        
+        if (contentType && contentType.includes('application/json')) {
+          const errorData = await res.json();
+          errorMessage = errorData.error || errorData.details || errorMessage;
+        } else {
+          const text = await res.text();
+          errorMessage = `HTML Error: ${text.slice(0, 150)}...`;
+        }
+        throw new Error(errorMessage);
       }
       const data = await res.json();
       setProject(data.project);

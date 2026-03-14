@@ -4,13 +4,15 @@ const url = process.env.TURSO_DATABASE_URL;
 const authToken = process.env.TURSO_AUTH_TOKEN;
 
 if (process.env.NODE_ENV === 'production' && !url) {
-  console.warn("⚠️ WARNING: TURSO_DATABASE_URL is not set. Using local file-based database which will NOT persist on Vercel.");
+  throw new Error("CRITICAL: TURSO_DATABASE_URL is missing in Vercel environment variables.");
 }
 
 const db = createClient({
   url: url || 'file:socialme.db',
   authToken: authToken,
 });
+
+console.log(`[DB] Initialized with URL: ${url ? url.split('://')[0] + '://***' : 'local file'}`);
 
 console.log(`[Turso] Connected to: ${url ? url.replace(/:[^@]+@/, ':***@') : 'local file'}`);
 
