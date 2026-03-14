@@ -1,0 +1,7 @@
+backend-vps/
+node_modules/
+.git/
+socialme.db
+chat_errors.log
+all_chunks.txt
+*.traineddata
