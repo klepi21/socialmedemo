@@ -29,7 +29,7 @@ export async function POST(req: NextRequest) {
     projectId = body.projectId;
 
     // 1. Get Project Data
-    const project = projectId ? projectService.getProject(projectId) : null;
+    const project = projectId ? await projectService.getProject(projectId) : null;
 
     // RAG context enhancement: user message + potential service intent
     const intentQuery = `${lastMessage} digital marketing development agency services`;

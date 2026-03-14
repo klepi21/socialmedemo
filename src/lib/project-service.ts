@@ -8,112 +8,130 @@ const projectService = {
     const namespace = `ns_${id.replace(/-/g, '')}`;
     const defaultPrompt = `Είσαι ένας φιλικός AI βοηθός για το project "${name}". Στόχος σου είναι να βοηθάς τους χρήστες με βάση τις πληροφορίες που έχεις εκπαιδευτεί.`;
     
-    const stmt = db.prepare(`
-      INSERT INTO projects (id, name, description, namespace, system_prompt)
-      VALUES (?, ?, ?, ?, ?)
-    `);
+    await db.execute({
+      sql: `INSERT INTO projects (id, name, description, namespace, system_prompt) VALUES (?, ?, ?, ?, ?)`,
+      args: [id, name, description || null, namespace, defaultPrompt]
+    });
     
-    stmt.run(id, name, description || null, namespace, defaultPrompt);
-    return this.getProject(id) as Project;
+    return (await this.getProject(id)) as Project;
   },
 
   // Update project prompt
   async updateProjectPrompt(id: string, prompt: string): Promise<void> {
-    const stmt = db.prepare('UPDATE projects SET system_prompt = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?');
-    stmt.run(prompt, id);
+    await db.execute({
+      sql: 'UPDATE projects SET system_prompt = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
+      args: [prompt, id]
+    });
   },
 
   // Get project by ID
-  getProject(id: string): Project | null {
-    const stmt = db.prepare('SELECT * FROM projects WHERE id = ?');
-    return stmt.get(id) as Project | null;
+  async getProject(id: string): Promise<Project | null> {
+    const rs = await db.execute({
+      sql: 'SELECT * FROM projects WHERE id = ?',
+      args: [id]
+    });
+    return (rs.rows[0] as unknown as Project) || null;
   },
 
   // List all projects
-  listProjects(): Project[] {
-    const stmt = db.prepare('SELECT * FROM projects ORDER BY created_at DESC');
-    return stmt.all() as Project[];
+  async listProjects(): Promise<Project[]> {
+    const rs = await db.execute('SELECT * FROM projects ORDER BY created_at DESC');
+    return rs.rows as unknown as Project[];
   },
 
   // Add a source to a project
   async addSource(projectId: string, type: 'url' | 'file' | 'text', content: string): Promise<Source> {
     const id = uuidv4();
-    const stmt = db.prepare(`
-      INSERT INTO sources (id, project_id, type, content)
-      VALUES (?, ?, ?, ?)
-    `);
-    stmt.run(id, projectId, type, content);
-    return this.getSource(id) as Source;
+    await db.execute({
+      sql: `INSERT INTO sources (id, project_id, type, content) VALUES (?, ?, ?, ?)`,
+      args: [id, projectId, type, content]
+    });
+    return (await this.getSource(id)) as Source;
   },
 
   // Get sources for a project
-  getSources(projectId: string): Source[] {
-    const stmt = db.prepare('SELECT * FROM sources WHERE project_id = ?');
-    return stmt.all(projectId) as Source[];
+  async getSources(projectId: string): Promise<Source[]> {
+    const rs = await db.execute({
+      sql: 'SELECT * FROM sources WHERE project_id = ?',
+      args: [projectId]
+    });
+    return rs.rows as unknown as Source[];
   },
 
   // Get single source
-  getSource(id: string): Source | null {
-    const stmt = db.prepare('SELECT * FROM sources WHERE id = ?');
-    return stmt.get(id) as Source | null;
+  async getSource(id: string): Promise<Source | null> {
+    const rs = await db.execute({
+      sql: 'SELECT * FROM sources WHERE id = ?',
+      args: [id]
+    });
+    return (rs.rows[0] as unknown as Source) || null;
   },
 
   // Update project status
-  updateProjectStatus(id: string, status: string) {
-    const stmt = db.prepare('UPDATE projects SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?');
-    stmt.run(status, id);
+  async updateProjectStatus(id: string, status: string) {
+    await db.execute({
+      sql: 'UPDATE projects SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
+      args: [status, id]
+    });
   },
 
   // Get project stats
-  getStats(projectId: string) {
-    const vectors = db.prepare('SELECT COUNT(*) as count FROM embeddings WHERE project_id = ?').get(projectId) as any;
-    const sources = db.prepare('SELECT COUNT(*) as count FROM sources WHERE project_id = ?').get(projectId) as any;
+  async getStats(projectId: string) {
+    const rsVectors = await db.execute({
+      sql: 'SELECT COUNT(*) as count FROM embeddings WHERE project_id = ?',
+      args: [projectId]
+    });
+    const rsSources = await db.execute({
+      sql: 'SELECT COUNT(*) as count FROM sources WHERE project_id = ?',
+      args: [projectId]
+    });
     return {
-      vectors: vectors?.count || 0,
-      sources: sources?.count || 0,
+      vectors: Number(rsVectors.rows[0]?.count) || 0,
+      sources: Number(rsSources.rows[0]?.count) || 0,
     };
   },
 
   // Get individual pages learned by the project
-  getPages(projectId: string): any[] {
-    const stmt = db.prepare('SELECT * FROM project_pages WHERE project_id = ? ORDER BY created_at DESC');
-    return stmt.all(projectId);
+  async getPages(projectId: string): Promise<any[]> {
+    const rs = await db.execute({
+      sql: 'SELECT * FROM project_pages WHERE project_id = ? ORDER BY created_at DESC',
+      args: [projectId]
+    });
+    return rs.rows;
   },
 
   async resetKnowledge(projectId: string): Promise<void> {
-    const transaction = db.transaction(() => {
-      db.prepare('DELETE FROM embeddings WHERE project_id = ?').run(projectId);
-      db.prepare('DELETE FROM project_pages WHERE project_id = ?').run(projectId);
-      db.prepare('DELETE FROM sources WHERE project_id = ?').run(projectId);
-      db.prepare('UPDATE projects SET status = \'idle\' WHERE id = ?').run(projectId);
-    });
-    transaction();
+    await db.batch([
+      { sql: 'DELETE FROM embeddings WHERE project_id = ?', args: [projectId] },
+      { sql: 'DELETE FROM project_pages WHERE project_id = ?', args: [projectId] },
+      { sql: 'DELETE FROM sources WHERE project_id = ?', args: [projectId] },
+      { sql: 'UPDATE projects SET status = \'idle\' WHERE id = ?', args: [projectId] }
+    ]);
   },
 
   // Save a new lead
-  saveLead(projectId: string | null, clientName: string, email: string, phone: string, data: any) {
+  async saveLead(projectId: string | null, clientName: string, email: string, phone: string, data: any) {
     const id = uuidv4();
-    const stmt = db.prepare(`
-      INSERT INTO leads (id, project_id, client_name, email, phone, data)
-      VALUES (?, ?, ?, ?, ?, ?)
-    `);
-    stmt.run(id, projectId, clientName, email, phone, JSON.stringify(data));
+    await db.execute({
+      sql: `INSERT INTO leads (id, project_id, client_name, email, phone, data) VALUES (?, ?, ?, ?, ?, ?)`,
+      args: [id, projectId, clientName, email, phone, JSON.stringify(data)]
+    });
     return id;
   },
 
   // List all leads for a dashboard
-  listLeads(projectId?: string) {
+  async listLeads(projectId?: string) {
     let sql = 'SELECT * FROM leads';
-    let params: any[] = [];
+    let args: any[] = [];
     
     if (projectId) {
       sql += ' WHERE project_id = ?';
-      params.push(projectId);
+      args.push(projectId);
     }
     
     sql += ' ORDER BY created_at DESC';
-    const stmt = db.prepare(sql);
-    return stmt.all(...params).map((lead: any) => ({
+    const rs = await db.execute({ sql, args });
+    return rs.rows.map((lead: any) => ({
       ...lead,
       data: JSON.parse(lead.data)
     }));

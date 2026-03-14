@@ -3,7 +3,7 @@ import projectService from '@/lib/project-service';
 
 export async function GET() {
   try {
-    const projects = projectService.listProjects();
+    const projects = await projectService.listProjects();
     return NextResponse.json(projects);
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });

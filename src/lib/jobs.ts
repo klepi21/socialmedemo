@@ -47,7 +47,7 @@ function chunkText(text: string, size: number = 800): string[] {
 }
 
 export const jobManager = {
-  createJob(projectId: string, sourceId?: string, url?: string, manualKnowledge?: string): string {
+  async createJob(projectId: string, sourceId?: string, url?: string, manualKnowledge?: string): Promise<string> {
     // If there is already an active job for this project, return IT instead of creating new
     if (activeProjectJobs.has(projectId)) {
       const existingId = activeProjectJobs.get(projectId)!;
@@ -64,10 +64,10 @@ export const jobManager = {
 
     let finalSourceId = sourceId;
     if (!finalSourceId) {
-       const source = url 
-         ? db.prepare('SELECT id FROM sources WHERE project_id = ? AND content = ?').get(projectId, url) as any
-         : db.prepare('SELECT id FROM sources WHERE project_id = ? AND type = "text"').get(projectId) as any;
-       finalSourceId = source?.id;
+       const rs = url 
+         ? await db.execute({ sql: 'SELECT id FROM sources WHERE project_id = ? AND content = ?', args: [projectId, url] })
+         : await db.execute({ sql: 'SELECT id FROM sources WHERE project_id = ? AND type = "text"', args: [projectId] });
+       finalSourceId = rs.rows[0]?.id as string;
     }
     if (!finalSourceId) throw new Error('Source not found.');
 
@@ -87,8 +87,6 @@ export const jobManager = {
   // Force reset a project's job status
   resetProject(projectId: string) {
     activeProjectJobs.delete(projectId);
-    // We don't necessarily delete the job from 'jobs' map so logs remain,
-    // but the project is no longer considered "actively training".
   },
 
   async runJob(id: string, projectId: string, sourceId: string, url?: string, manualKnowledge?: string) {
@@ -97,35 +95,39 @@ export const jobManager = {
 
     try {
       // 1. Initial State & Cleanup
-      db.prepare("UPDATE projects SET status = 'training' WHERE id = ?").run(projectId);
-      db.prepare("DELETE FROM embeddings WHERE source_id = ?").run(sourceId);
-      db.prepare("DELETE FROM project_pages WHERE source_id = ?").run(sourceId);
-
-      const insertEmbedding = db.prepare('INSERT INTO embeddings (id, project_id, source_id, text, vector) VALUES (?, ?, ?, ?, ?)');
-      const insertPage = db.prepare('INSERT INTO project_pages (id, project_id, source_id, url, title, char_count) VALUES (?, ?, ?, ?, ?, ?)');
+      await db.batch([
+        { sql: "UPDATE projects SET status = 'training' WHERE id = ?", args: [projectId] },
+        { sql: "DELETE FROM embeddings WHERE source_id = ?", args: [sourceId] },
+        { sql: "DELETE FROM project_pages WHERE source_id = ?", args: [sourceId] }
+      ]);
 
       const processPage = async (page: { url: string, content: string, title: string }) => {
         try {
-          // Verify source still exists (protection against 'Wipe Knowledge' while running)
-          const sourceExists = db.prepare('SELECT 1 FROM sources WHERE id = ?').get(sourceId);
-          if (!sourceExists) {
+          // Verify source still exists
+          const rsSource = await db.execute({ sql: 'SELECT 1 FROM sources WHERE id = ?', args: [sourceId] });
+          if (rsSource.rows.length === 0) {
             console.log(`Job ${id}: Source ${sourceId} was deleted. Stopping.`);
             throw new Error('STOP_JOB');
           }
 
           // Insert page metadata
-          insertPage.run(uuidv4(), projectId, sourceId, page.url, page.title, page.content.length);
+          await db.execute({
+            sql: 'INSERT INTO project_pages (id, project_id, source_id, url, title, char_count) VALUES (?, ?, ?, ?, ?, ?)',
+            args: [uuidv4(), projectId, sourceId, page.url, page.title, page.content.length]
+          });
 
           // Vectorize & Insert Chunks
           const chunks = chunkText(page.content, 900);
           for (const chunk of chunks) {
             const embedding = await getLocalEmbedding(chunk);
-            insertEmbedding.run(uuidv4(), projectId, sourceId, chunk, JSON.stringify(embedding));
+            await db.execute({
+              sql: 'INSERT INTO embeddings (id, project_id, source_id, text, vector) VALUES (?, ?, ?, ?, ?)',
+              args: [uuidv4(), projectId, sourceId, chunk, JSON.stringify(embedding)]
+            });
             job.chunks++;
           }
           
           job.current++;
-          // Simulated progress for responsiveness
           job.progress = Math.min(99, 10 + Math.floor((job.current / (job.total || 50)) * 80));
         } catch (err: any) {
           if (err.message === 'STOP_JOB') throw err;
@@ -137,16 +139,14 @@ export const jobManager = {
       if (url) {
         job.status = 'scraping';
         job.message = 'Deep Crawling & Learning...';
-        const crawler = new CustomCrawler(2000); // Allow many pages
+        const crawler = new CustomCrawler(2000); 
         
         await crawler.crawl(
           url, 
           (msg, current) => {
             job.message = msg;
-            // job.current is updated in processPage now
           },
           async (page) => {
-            // This happens IN PARALLEL with the crawl
             await processPage(page);
           }
         );
@@ -159,8 +159,10 @@ export const jobManager = {
       }
 
       // 3. Finalization
-      db.prepare("UPDATE sources SET status = 'completed' WHERE id = ?").run(sourceId);
-      db.prepare("UPDATE projects SET status = 'ready' WHERE id = ?").run(projectId);
+      await db.batch([
+        { sql: "UPDATE sources SET status = 'completed' WHERE id = ?", args: [sourceId] },
+        { sql: "UPDATE projects SET status = 'ready' WHERE id = ?", args: [projectId] }
+      ]);
       job.status = 'success';
       job.message = `Sync Complete! Learned ${job.current} pages.`;
       activeProjectJobs.delete(projectId);
@@ -172,7 +174,7 @@ export const jobManager = {
       console.error('JobManager Error:', error);
       job.status = 'error';
       job.message = error.message;
-      db.prepare("UPDATE projects SET status = 'error' WHERE id = ?").run(projectId);
+      await db.execute({ sql: "UPDATE projects SET status = 'error' WHERE id = ?", args: [projectId] });
       activeProjectJobs.delete(projectId);
     }
   }

@@ -68,7 +68,7 @@ Return ONLY the JSON.
 
     // Save to Database
     if (result.client_name) {
-      projectService.saveLead(
+      await projectService.saveLead(
         projectId || null,
         result.client_name,
         result.email || '',

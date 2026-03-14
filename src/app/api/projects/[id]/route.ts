@@ -5,12 +5,12 @@ import { jobManager } from '@/lib/jobs';
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await params;
-    const project = projectService.getProject(id);
+    const project = await projectService.getProject(id);
     if (!project) return NextResponse.json({ error: 'Project not found' }, { status: 404 });
 
-    const sources = projectService.getSources(id);
-    const pages = projectService.getPages(id);
-    const stats = projectService.getStats(id);
+    const sources = await projectService.getSources(id);
+    const pages = await projectService.getPages(id);
+    const stats = await projectService.getStats(id);
     
     // Check for active training jobs to resume UI state
     const activeJob = jobManager.getJobByProject(id);
