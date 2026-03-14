@@ -5,7 +5,9 @@ export const dynamic = 'force-dynamic';
 
 export async function GET(req: NextRequest) {
   try {
-    const leads = await projectService.listLeads();
+    const searchParams = req.nextUrl.searchParams;
+    const projectId = searchParams.get('projectId');
+    const leads = await projectService.listLeads(projectId || undefined);
     return NextResponse.json(leads);
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });

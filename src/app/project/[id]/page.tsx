@@ -97,6 +97,25 @@ export default function ProjectPage() {
     }
   };
 
+  // Poll for stats every 3 seconds if we have a project and stats.vectors is 0 or training is active
+  useEffect(() => {
+    if (!project || !isAuthenticated) return;
+    
+    // Only poll if no vectors yet or job is active
+    if (stats.vectors === 0 || trainingJob) {
+      const interval = setInterval(() => {
+        fetch(`/api/projects/${project.id}`)
+          .then(res => res.json())
+          .then(data => {
+            if (data.stats) setStats(data.stats);
+            if (data.project) setProject(prev => ({ ...prev, status: data.project.status } as Project));
+          })
+          .catch(err => console.error("Polling error:", err));
+      }, 3000);
+      return () => clearInterval(interval);
+    }
+  }, [project?.id, stats.vectors, trainingJob, isAuthenticated]);
+
   const addSource = async () => {
     if (!newSource.content) return;
     const { id } = params as any;
