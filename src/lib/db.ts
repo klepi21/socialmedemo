@@ -8,10 +8,9 @@ let _db: any = null;
 export function getDb() {
   if (!_db) {
     _db = createClient({
-      url: url || 'file:socialme.db',
-      authToken: authToken,
+      url: process.env.TURSO_DATABASE_URL || 'file:socialme.db',
+      authToken: process.env.TURSO_AUTH_TOKEN,
     });
-    console.log(`[DB] Lazy client initialized. Mode: ${url ? 'Cloud' : 'Local'}`);
   }
   return _db;
 }
