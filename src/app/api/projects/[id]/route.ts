@@ -3,21 +3,25 @@ import projectService from '@/lib/project-service';
 
 export const dynamic = 'force-dynamic';
 
-export async function GET(req: NextRequest, { params }: any) {
+export async function GET(req: NextRequest, context: any) {
   const metaId = `API_${Date.now()}`;
   try {
-    // Next.js 15/16 Compatibility: Ensure params are correctly awaited if needed
-    let p = params;
-    if (p instanceof Promise) p = await p;
-    const id = p?.id;
+    const params = await context.params;
+    const id = params?.id;
 
-    if (!id) return NextResponse.json({ error: 'ID_REQUIRED' }, { status: 400 });
+    if (!id) {
+      console.error(`[${metaId}] No ID in params!`, params);
+      return NextResponse.json({ error: 'ID_MISSING' }, { status: 400 });
+    }
 
     console.log(`[${metaId}] Loading project: ${id}`);
     
-    // Core data only - avoid complex stats if failing
+    // Core data only
     const project = await projectService.getProject(id);
-    if (!project) return NextResponse.json({ error: 'NOT_FOUND' }, { status: 404 });
+    if (!project) {
+      console.warn(`[${metaId}] Project ${id} not found in DB`);
+      return NextResponse.json({ error: 'NOT_FOUND' }, { status: 404 });
+    }
 
     // Optional data blocks with safe catch
     const sources = await projectService.getSources(id).catch(() => []);
@@ -44,9 +48,10 @@ export async function GET(req: NextRequest, { params }: any) {
   }
 }
 
-export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+export async function POST(req: NextRequest, context: any) {
   try {
-    const { id } = await params;
+    const params = await context.params;
+    const id = params?.id;
     const { type, content } = await req.json();
     if (!type || !content) return NextResponse.json({ error: 'Type and content are required' }, { status: 400 });
 
@@ -57,9 +62,10 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   }
 }
 
-export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+export async function PATCH(req: NextRequest, context: any) {
   try {
-    const { id } = await params;
+    const params = await context.params;
+    const id = params?.id;
     const { system_prompt } = await req.json();
     if (system_prompt === undefined) return NextResponse.json({ error: 'System prompt is required' }, { status: 400 });
 
@@ -69,9 +75,10 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
-export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+export async function DELETE(req: NextRequest, context: any) {
   try {
-    const { id } = await params;
+    const params = await context.params;
+    const id = params?.id;
     await projectService.resetKnowledge(id);
     return NextResponse.json({ message: 'Project knowledge wiped successfully' });
   } catch (error: any) {
