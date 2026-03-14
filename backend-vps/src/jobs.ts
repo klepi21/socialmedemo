@@ -48,6 +48,8 @@ export const jobManager = {
     }
 
     const id = uuidv4().slice(0, 8);
+    console.log(`[JOBS] Creating new job ${id} for project ${projectId}`);
+    
     const newJob: TrainingJob = { 
         id, 
         projectId,
@@ -97,10 +99,13 @@ export const jobManager = {
     const job = jobs.get(id);
     if (!job) return;
 
+    console.log(`[JOBS] Starting execution for job ${id} (Project: ${projectId}, URL: ${url || 'manual'})`);
+
     try {
       await db.execute({ sql: "UPDATE projects SET status = 'training' WHERE id = ?", args: [projectId] });
       
       const processPage = async (page: { url: string, content: string, title: string }) => {
+        console.log(`[JOBS] Processing page: ${page.url} (${page.content.length} chars)`);
         // Insert page metadata
         const pageId = uuidv4();
         await db.execute({
