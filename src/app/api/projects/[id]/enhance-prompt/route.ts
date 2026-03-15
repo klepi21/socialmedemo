@@ -30,13 +30,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       temperature: 0.7,
     });
 
-    // Post-process: strip <think> blocks and any {context} references
+    // Post-process: strip any {context} references the AI might have added
     let enhancedPrompt = response.choices[0].message.content?.trim() || '';
-    
-    // Clean out thinking blocks (Qwen/Deepseek specific)
-    enhancedPrompt = enhancedPrompt.replace(/<think>[\s\S]*?<\/think>/g, '').trim();
-    enhancedPrompt = enhancedPrompt.replace(/<thinking>[\s\S]*?<\/thinking>/g, '').trim();
-    
     enhancedPrompt = enhancedPrompt.replaceAll('{context}', '').replaceAll('`{context}`', '');
 
     return NextResponse.json({ enhancedPrompt });

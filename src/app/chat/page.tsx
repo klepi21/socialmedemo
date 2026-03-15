@@ -3,10 +3,12 @@
 import { Suspense, useState, useRef, useEffect } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { Button } from '@/components/ui/Button';
-import { MessageSquare, Mic, Send, MicOff, ChevronLeft, Loader2, Sparkles, Volume2, Square, FileText, ChevronDown, ChevronUp, CheckCircle2 } from 'lucide-react';
+import { MessageSquare, Mic, Send, MicOff, ChevronLeft, Loader2, Sparkles, Volume2, Square, FileText, ChevronDown, ChevronUp, CheckCircle2, Target, Wallet, Download, Clock } from 'lucide-react';
 import { useSpeechRecognition } from '@/hooks/useSpeech';
 import LeadSummaryCard from '@/components/LeadSummaryCard';
 import ReactMarkdown from 'react-markdown';
+import jsPDF from 'jspdf';
+import html2canvas from 'html2canvas';
 
 type Message = { role: 'user' | 'assistant'; content: string };
 
@@ -82,6 +84,36 @@ function ChatComponent() {
   const messagesRef = useRef<Message[]>([]);
   const speakQueueRef = useRef<string[]>([]);
   const isPlayingQueueRef = useRef(false);
+  
+  const [isExporting, setIsExporting] = useState(false);
+  const pdfRef = useRef<HTMLDivElement>(null);
+
+  const generatePDF = async () => {
+    setIsExporting(true);
+    // Wait for state to settle and template to render
+    await new Promise(r => setTimeout(r, 500));
+
+    try {
+      if (!pdfRef.current) return;
+      const canvas = await html2canvas(pdfRef.current, {
+        scale: 1.5,
+        useCORS: true,
+        backgroundColor: '#000000',
+      });
+
+      const imgData = canvas.toDataURL('image/jpeg', 0.8);
+      const pdf = new jsPDF({ orientation: 'p', unit: 'mm', format: 'a4', compress: true });
+      const imgWidth = 190;
+      const imgHeight = (canvas.height * imgWidth) / canvas.width;
+      pdf.addImage(imgData, 'JPEG', 10, 10, imgWidth, imgHeight);
+      pdf.save(`Proposal_${(leadData?.client_name || 'Business').replace(/\s+/g, '_')}.pdf`);
+    } catch (err) {
+      console.error('PDF export error:', err);
+      alert('Η δημιουργία του PDF απέτυχε. Παρακαλούμε δοκιμάστε ξανά.');
+    } finally {
+      setIsExporting(false);
+    }
+  };
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -275,15 +307,65 @@ function ChatComponent() {
             <div className="w-24 h-24 bg-green-100 text-green-600 rounded-full flex items-center justify-center shadow-xl">
               <CheckCircle2 size={48} />
             </div>
-            <div className="space-y-4">
+            <div className="space-y-4 mb-4">
               <h2 className="text-3xl font-black text-slate-900 leading-tight">Ευχαριστούμε πολύ!</h2>
               <p className="text-slate-500 max-w-sm mx-auto leading-relaxed">
-                Λάβαμε όλες τις απαραίτητες πληροφορίες. Η ομάδα μας θα επικοινωνήσει μαζί σας σύντομα στο <strong>{leadState.email}</strong> για να σας στείλουμε την πλήρη πρότασή μας.
+                Λάβαμε όλες τις απαραίτητες πληροφορίες. Η ομάδα μας θα επικοινωνήσει μαζί σας σύντομα στο <strong>{leadData?.email || leadState.email}</strong> για να σας στείλουμε την πλήρη πρότασή μας.
               </p>
             </div>
+
+            {/* Client Summary Card */}
+            {leadData && (
+              <div className="w-full max-w-md bg-white rounded-[32px] border border-slate-100 p-8 shadow-xl text-left mb-8 animate-in zoom-in-95 duration-500">
+                <div className="flex items-center gap-4 mb-6">
+                  <div className="w-12 h-12 bg-emerald-500 rounded-2xl flex items-center justify-center text-white shadow-lg shadow-emerald-200">
+                    <CheckCircle2 size={24} />
+                  </div>
+                  <div>
+                    <h3 className="font-black text-slate-900 leading-tight">Σύνοψη Έργου</h3>
+                    <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">{leadData.project_title || 'Νέο Project'}</p>
+                  </div>
+                </div>
+
+                <div className="space-y-4">
+                  <div className="flex gap-4">
+                    <div className="w-8 h-8 rounded-lg bg-slate-50 flex items-center justify-center text-slate-400 flex-shrink-0">
+                      <Target size={16} />
+                    </div>
+                    <div>
+                      <p className="text-[10px] font-bold text-slate-400 uppercase">Σκοπός</p>
+                      <p className="text-sm text-slate-700 leading-relaxed line-clamp-2">{leadData.scope}</p>
+                    </div>
+                  </div>
+                  {leadData.budget_estimation && (
+                    <div className="flex gap-4">
+                      <div className="w-8 h-8 rounded-lg bg-slate-50 flex items-center justify-center text-slate-400 flex-shrink-0">
+                        <Wallet size={16} />
+                      </div>
+                      <div>
+                        <p className="text-[10px] font-bold text-slate-400 uppercase">Εκτίμηση Budget</p>
+                        <p className="text-sm font-black text-emerald-600">{leadData.budget_estimation}</p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                <div className="mt-8 pt-6 border-t border-slate-50 flex flex-col gap-3">
+                   <Button 
+                    className="w-full h-14 bg-blue-600 hover:bg-blue-500 text-white rounded-2xl gap-2 shadow-lg shadow-blue-200"
+                    onClick={generatePDF}
+                    disabled={isExporting}
+                  >
+                    {isExporting ? <Loader2 className="animate-spin" size={20} /> : <Download size={20} />}
+                    Λήψη Πρότασης (PDF)
+                  </Button>
+                </div>
+              </div>
+            )}
+
             <Button 
               variant="outline" 
-              className="px-8 h-12 text-slate-400 border-slate-200"
+              className="px-8 h-12 text-slate-400 border-slate-200 rounded-xl"
               onClick={() => window.location.reload()}
             >
               Νέα Συνομιλία
@@ -483,6 +565,87 @@ function ChatComponent() {
       </footer>
       </>
       )}
+
+      {/* Hidden PDF Template for Export */}
+      {leadData && (
+          <div style={{ position: 'absolute', left: '-9999px', top: 0 }}>
+            <div ref={pdfRef} style={{ backgroundColor: '#000000', color: '#ffffff', width: '800px', padding: '40px', fontFamily: 'Arial, sans-serif' }}>
+              {/* PDF Header */}
+              <div style={{ backgroundColor: '#059669', padding: '32px 24px', borderRadius: '16px', marginBottom: '32px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                  <div style={{ backgroundColor: 'rgba(255,255,255,0.2)', padding: '12px', borderRadius: '16px' }}>
+                    <CheckCircle2 color="#ffffff" size={36} />
+                  </div>
+                  <div>
+                    <h3 style={{ color: '#ffffff', fontWeight: '900', fontSize: '24px' }}>Επαγγελματική Πρόταση</h3>
+                    <p style={{ color: '#d1fae5', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.1em', marginTop: '4px' }}>
+                      {leadData.client_name} • SocialMe Digital AI
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Project Title */}
+              {leadData.project_title && (
+                <div style={{ borderLeft: '4px solid #059669', paddingLeft: '20px', marginBottom: '32px' }}>
+                  <p style={{ color: '#34d399', fontSize: '11px', fontWeight: '900', textTransform: 'uppercase', letterSpacing: '0.2em', marginBottom: '8px' }}>Τίτλος Έργου</p>
+                  <p style={{ fontSize: '28px', fontWeight: '900', lineHeight: '1.1' }}>{leadData.project_title}</p>
+                </div>
+              )}
+
+              {/* Info Grid */}
+              <div style={{ display: 'flex', gap: '24px', flexWrap: 'wrap', marginBottom: '32px' }}>
+                <div style={{ flex: '1 1 200px' }}>
+                  <p style={{ color: '#6b7280', fontSize: '11px', fontWeight: 'bold', textTransform: 'uppercase' }}>Επικοινωνία</p>
+                  <p style={{ fontSize: '15px', marginTop: '8px' }}>{leadData.email}</p>
+                  <p style={{ fontSize: '14px', color: '#9ca3af', marginTop: '4px' }}>{leadData.phone}</p>
+                </div>
+                {leadData.budget_estimation && (
+                  <div style={{ flex: '1 1 200px' }}>
+                    <p style={{ color: '#6b7280', fontSize: '11px', fontWeight: 'bold', textTransform: 'uppercase' }}>Προϋπολογισμός</p>
+                    <p style={{ fontSize: '24px', color: '#34d399', marginTop: '8px', fontWeight: '900' }}>{leadData.budget_estimation}</p>
+                  </div>
+                )}
+                {leadData.timeline && (
+                  <div style={{ flex: '1 1 200px' }}>
+                    <p style={{ color: '#6b7280', fontSize: '11px', fontWeight: 'bold', textTransform: 'uppercase' }}>Χρονοδιάγραμμα</p>
+                    <p style={{ fontSize: '16px', marginTop: '8px', fontWeight: '600' }}>{leadData.timeline}</p>
+                  </div>
+                )}
+              </div>
+
+              {/* Goals */}
+              {leadData.client_goals?.length > 0 && (
+                <div style={{ marginBottom: '32px' }}>
+                  <p style={{ color: '#6b7280', fontSize: '11px', fontWeight: 'bold', textTransform: 'uppercase', marginBottom: '12px' }}>Στόχοι Πελάτη</p>
+                  {leadData.client_goals.map((g: string, i: number) => (
+                    <p key={i} style={{ fontSize: '14px', color: '#e5e7eb', marginBottom: '6px' }}>• {g}</p>
+                  ))}
+                </div>
+              )}
+
+              {/* Tasks */}
+              {leadData.key_tasks?.length > 0 && (
+                <div style={{ marginBottom: '32px' }}>
+                  <p style={{ color: '#6b7280', fontSize: '11px', fontWeight: 'bold', textTransform: 'uppercase', marginBottom: '12px' }}>Πλάνο Υλοποίησης</p>
+                  {leadData.key_tasks.map((t: any, i: number) => (
+                    <div key={i} style={{ backgroundColor: 'rgba(255,255,255,0.03)', padding: '16px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.05)', marginBottom: '8px', display: 'flex', gap: '12px', alignItems: 'center' }}>
+                      <span style={{ fontSize: '10px', fontWeight: 'bold', backgroundColor: '#059669', padding: '4px 12px', borderRadius: '999px', textTransform: 'uppercase' }}>{t.category}</span>
+                      <p style={{ fontSize: '14px', color: '#d1d5db' }}>{t.task}</p>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Footer */}
+              <div style={{ paddingTop: '20px', borderTop: '1px solid rgba(255,255,255,0.05)', textAlign: 'center' }}>
+                <p style={{ fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.3em', fontWeight: 'bold', color: '#475569' }}>
+                  SOCIALME DIGITAL STRATEGY BUREAU • {new Date().getFullYear()}
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

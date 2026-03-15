@@ -2,10 +2,15 @@ import { NextRequest, NextResponse } from 'next/server';
 import { groq } from '@/lib/ai';
 import { getContext } from '@/lib/rag';
 import projectService from '@/lib/project-service';
+import { initSchema } from '@/lib/db';
 
 export async function POST(req: NextRequest) {
   try {
     const { messages, projectId } = await req.json();
+    
+    // Ensure DB tables exist (Leads table might be missing)
+    await initSchema();
+    
     console.log(`[LEAD ANALYZE] Starting analysis. ProjectId: ${projectId}, Messages: ${messages?.length}`);
 
     // 1. Identify the project theme to fetch relevant "brain" context
@@ -74,7 +79,7 @@ Return ONLY the JSON.
     console.log('[LEAD ANALYZE] Raw AI response:', rawContent.slice(0, 200));
     
     // Clean thinking blocks if present
-    const cleanContent = rawContent.replace(/<(think|thinking)>[\s\S]*?<\/(think|thinking)>/g, '').trim();
+    const cleanContent = rawContent.replace(/<think>[\s\S]*?<\/think>/g, '').trim();
     const result = JSON.parse(cleanContent);
     console.log('[LEAD ANALYZE] Parsed result. client_name:', result.client_name, 'email:', result.email);
 
