@@ -312,7 +312,7 @@ function ChatComponent() {
             <div className="space-y-4 mb-4">
               <h2 className="text-3xl font-black text-slate-900 leading-tight">Ευχαριστούμε πολύ!</h2>
               <p className="text-slate-500 max-w-sm mx-auto leading-relaxed">
-                Λάβαμε όλες τις απαραίτητες πληροφορίες. Η ομάδα μας θα επικοινωνήσει μαζί σας σύντομα στο <strong>{leadData?.email || leadState.email}</strong> για να σας στείλουμε την πλήρη πρότασή μας.
+                Λάβαμε όλες τις απαραίτητες πληροφορίες. Η ομάδα μας θα επικοινωνήσει μαζί σας σύντομα στο <strong>{leadData?.email || leadState.email || leadData?.phone || leadState.phone || 'στοιχεία επικοινωνίας σας'}</strong> για να σας στείλουμε την πλήρη πρότασή μας.
               </p>
             </div>
 
@@ -325,7 +325,7 @@ function ChatComponent() {
                   </div>
                   <div>
                     <h3 className="font-black text-slate-900 leading-tight">Σύνοψη Έργου</h3>
-                    <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">{leadData.project_title || 'Νέο Project'}</p>
+                    <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">{leadData.project_title || leadState.company || 'Νέο Project'}</p>
                   </div>
                 </div>
 
@@ -336,7 +336,7 @@ function ChatComponent() {
                     </div>
                     <div>
                       <p className="text-[10px] font-bold text-slate-400 uppercase">Σκοπός</p>
-                      <p className="text-sm text-slate-700 leading-relaxed line-clamp-2">{leadData.scope}</p>
+                      <p className="text-sm text-slate-700 leading-relaxed line-clamp-2">{leadData.scope || leadState.problem || 'Ανάπτυξη επιχείρησης'}</p>
                     </div>
                   </div>
                   {leadData.budget_estimation && (
