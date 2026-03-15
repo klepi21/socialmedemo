@@ -277,10 +277,53 @@ function ChatComponent() {
             </div>
             <div className="space-y-4">
               <h2 className="text-3xl font-black text-slate-900 leading-tight">Ευχαριστούμε πολύ!</h2>
-              <p className="text-slate-500 max-w-sm mx-auto leading-relaxed">
-                Λάβαμε όλες τις απαραίτητες πληροφορίες. Η ομάδα μας θα επικοινωνήσει μαζί σας σύντομα στο <strong>{leadState.email}</strong> για να σας στείλουμε την πλήρη πρότασή μας.
+              <p className="text-slate-500 max-w-sm mx-auto leading-relaxed mb-8">
+                Λάβαμε όλες τις απαραίτητες πληροφορίες. Η ομάδα μας θα επικοινωνήσει μαζί σας σύντομα στο <strong>{leadState.email}</strong>.
               </p>
             </div>
+
+            {/* Proposal Summary Card */}
+            {leadData && (
+              <div className="w-full max-w-md bg-white border border-slate-100 rounded-[2rem] p-6 shadow-xl mb-8 text-left animate-in slide-in-from-bottom-4 duration-700">
+                <div className="flex items-center gap-3 mb-4 border-b border-slate-50 pb-4">
+                  <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center text-white shadow-lg">
+                    <FileText size={20} />
+                  </div>
+                  <div>
+                    <h4 className="text-[10px] font-bold text-blue-600 uppercase tracking-widest">Προσχέδιο Πρότασης</h4>
+                    <p className="text-sm font-black text-slate-900 truncate">
+                      {leadData.project_title || 'Digital Strategy'}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="space-y-4">
+                  {leadData.budget_estimation && (
+                    <div>
+                      <span className="text-[9px] font-bold text-slate-400 uppercase">Εκτιμώμενο Κόστος</span>
+                      <p className="text-lg font-black text-green-600">{leadData.budget_estimation}</p>
+                    </div>
+                  )}
+                  
+                  {leadData.scope && (
+                    <div>
+                      <span className="text-[9px] font-bold text-slate-400 uppercase">Αντικείμενο</span>
+                      <p className="text-xs text-slate-600 leading-relaxed">{leadData.scope}</p>
+                    </div>
+                  )}
+
+                  {leadData.client_goals && leadData.client_goals.length > 0 && (
+                    <div className="flex flex-wrap gap-1.5 mt-2">
+                      {leadData.client_goals.slice(0, 3).map((goal: string, i: number) => (
+                        <span key={i} className="bg-slate-50 text-slate-500 text-[9px] font-bold px-2 py-1 rounded-md border border-slate-100">
+                          {goal}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
             <Button 
               variant="outline" 
               className="px-8 h-12 text-slate-400 border-slate-200"
