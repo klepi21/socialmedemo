@@ -212,14 +212,9 @@ function ChatComponent() {
       }
 
       // Auto-detect lead completion
-      // Process complete logic
-      const lowerText = assistantText.toLowerCase();
-      const isFinishing = assistantText.includes('[LEAD_COMPLETE]') || 
-                         (lowerText.includes('πρόταση ετοιμάζεται') && lowerText.includes('ευχαριστούμε'));
-
-      if (isFinishing && (leadState.email || leadState.phone)) {
-        console.log('[LEAD] Completion detected, triggering analysis...');
-        setTimeout(() => handleFinish(), 1500);
+      if (assistantText.includes('[LEAD_COMPLETE]') && (leadState.email || leadState.phone)) {
+        console.log('[LEAD] Complete tag detected, triggering analysis...');
+        setTimeout(() => handleFinish(), 2000);
       }
 
       // Safety net: auto-analyze after 10+ messages if we have SOME data
@@ -282,53 +277,10 @@ function ChatComponent() {
             </div>
             <div className="space-y-4">
               <h2 className="text-3xl font-black text-slate-900 leading-tight">Ευχαριστούμε πολύ!</h2>
-              <p className="text-slate-500 max-w-sm mx-auto leading-relaxed mb-8">
-                Λάβαμε όλες τις απαραίτητες πληροφορίες. Η ομάδα μας θα επικοινωνήσει μαζί σας σύντομα στο <strong>{leadState.email}</strong>.
+              <p className="text-slate-500 max-w-sm mx-auto leading-relaxed">
+                Λάβαμε όλες τις απαραίτητες πληροφορίες. Η ομάδα μας θα επικοινωνήσει μαζί σας σύντομα στο <strong>{leadState.email}</strong> για να σας στείλουμε την πλήρη πρότασή μας.
               </p>
             </div>
-
-            {/* Proposal Summary Card */}
-            {leadData && (
-              <div className="w-full max-w-md bg-white border border-slate-100 rounded-[2rem] p-6 shadow-xl mb-8 text-left animate-in slide-in-from-bottom-4 duration-700">
-                <div className="flex items-center gap-3 mb-4 border-b border-slate-50 pb-4">
-                  <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center text-white shadow-lg">
-                    <FileText size={20} />
-                  </div>
-                  <div>
-                    <h4 className="text-[10px] font-bold text-blue-600 uppercase tracking-widest">Προσχέδιο Πρότασης</h4>
-                    <p className="text-sm font-black text-slate-900 truncate">
-                      {leadData.project_title || 'Digital Strategy'}
-                    </p>
-                  </div>
-                </div>
-
-                <div className="space-y-4">
-                  {leadData.budget_estimation && (
-                    <div>
-                      <span className="text-[9px] font-bold text-slate-400 uppercase">Εκτιμώμενο Κόστος</span>
-                      <p className="text-lg font-black text-green-600">{leadData.budget_estimation}</p>
-                    </div>
-                  )}
-                  
-                  {leadData.scope && (
-                    <div>
-                      <span className="text-[9px] font-bold text-slate-400 uppercase">Αντικείμενο</span>
-                      <p className="text-xs text-slate-600 leading-relaxed">{leadData.scope}</p>
-                    </div>
-                  )}
-
-                  {leadData.client_goals && leadData.client_goals.length > 0 && (
-                    <div className="flex flex-wrap gap-1.5 mt-2">
-                      {leadData.client_goals.slice(0, 3).map((goal: string, i: number) => (
-                        <span key={i} className="bg-slate-50 text-slate-500 text-[9px] font-bold px-2 py-1 rounded-md border border-slate-100">
-                          {goal}
-                        </span>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
             <Button 
               variant="outline" 
               className="px-8 h-12 text-slate-400 border-slate-200"
@@ -458,7 +410,19 @@ function ChatComponent() {
       <footer className="p-4 sm:p-6 z-30 bg-white border-t border-slate-100">
         <div className="max-w-2xl mx-auto flex flex-col gap-4">
           
-          {/* Smart Finished Button removed as per user request */}
+          {/* Smart Finished Button: Appears when we have enough data to be useful */}
+          {leadState.client_name && (leadState.email || leadState.phone) && !isAnalyzing && !isFinished && (
+            <div className="flex justify-center animate-in slide-in-from-bottom-2">
+              <Button 
+                onClick={handleFinish}
+                variant="primary"
+                className="bg-emerald-600 hover:bg-emerald-500 text-white gap-2 px-8 rounded-full shadow-lg shadow-emerald-600/20 py-6 h-auto group"
+              >
+                <FileText size={20} className="group-hover:scale-110 transition-transform" />
+                Ολοκλήρωση & Σχεδιασμός Πρότασης
+              </Button>
+            </div>
+          )}
           
           <div className="flex items-center justify-center gap-6 w-full">
             {useVoice ? (
