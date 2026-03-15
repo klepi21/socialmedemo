@@ -6,15 +6,16 @@ import projectService from '@/lib/project-service';
 export const dynamic = 'force-dynamic';
 
 const FALLBACK_PROMPT = `
-Είσαι ο Sales Consultant της εταιρείας SocialMe.
-Στόχος σου: Να βοηθήσεις τον πελάτη και να συλλέξεις στοιχεία για μια επαγγελματική ΠΡΟΤΑΣΗ.
+Είσαι ένας Sales Consultant.
+ΚΑΝΟΝΕΣ ΣΥΜΠΕΡΙΦΟΡΑΣ:
+1. ΜΟΝΟ 1 ΠΡΟΤΑΣΗ ανά απάντηση.
+2. ΜΗΝ χαιρετάς και μην λες "Γεια σας", "Ευχαριστώ", "Ωραία".
+3. Κάθε φορά που μαθαίνεις πληροφορία, βάλε το tag: [LEAD_UPDATE: {"key": "value"}] στο ΤΕΛΟΣ.
+   KEYS: client_name, company, website, service_type, problem, budget, timeline, email, phone.
+4. ΑΠΑΓΟΡΕΥΕΤΑΙ η χρήση του [LEAD_COMPLETE] αν δεν γνωρίζεις ήδη το EMAIL ΚΑΙ ΤΟ ΤΗΛΕΦΩΝΟ (phone) του χρήστη.
+5. Το EMAIL και το PHONE είναι τα τελευταία στοιχεία. Μόλις τα έχεις, στείλε [LEAD_UPDATE: {"email": "...", "phone": "..."}] [LEAD_COMPLETE].
 
-ΚΑΝΟΝΕΣ:
-1. ΜΟΝΟ ΜΙΑ ΕΡΩΤΗΣΗ ανά μήνυμα. ΠΟΤΕ μην ρωτάς δύο πράγματα μαζί.
-2. Ξεκίνα με την ανάγκη του πελάτη και προχώρα σταδιακά.
-3. Κάθε απάντηση πρέπει να περιλαμβάνει μια σύντομη επιβεβαίωση και μία ΞΕΚΑΘΑΡΗ ερώτηση στο τέλος.
-4. Μην χαιρετάς μετά το πρώτο μήνυμα.
-5. Στο τέλος πρέπει να έχεις: Όνομα, Υπηρεσία, Budget και ένα στοιχείο επικοινωνίας.
+{context}
 `;
 
 export async function POST(req: NextRequest) {
@@ -29,16 +30,55 @@ export async function POST(req: NextRequest) {
 
     // 1. Get Project Data
     const project = projectId ? await projectService.getProject(projectId) : null;
+    if (projectId && !project) {
+        console.warn(`[CHAT] Project ${projectId} requested but not found in DB.`);
+    }
+
+    // RAG context enhancement: user message + potential service intent
+    let context = '';
+    try {
+      if (projectId) {
+          console.log(`[CHAT] Fetching RAG context for ${projectId}...`);
+          const intentQuery = `${lastMessage} digital marketing development agency services`;
+          context = await getContext(intentQuery, projectId);
+          if (context && context.length > 3000) {
+              context = context.slice(0, 3000);
+          }
+          console.log(`[CHAT] RAG context fetched: ${context.length} chars`);
+      }
+    } catch (ragErr: any) {
+      console.error(`[CHAT] RAG FAILED (continuing without context):`, ragErr.message);
+      context = ''; 
+    }
     
     // 2. Build identity header
     const identityHeader = `
-BUSINESS IDENTITY:
-Name: ${project?.name || 'SocialMe Digital Agency'}
-Consultant Role: Senior Sales Professional
+PROJECT KNOWLEDGE BASE:
+Business: ${project?.name || 'SocialMe AI'}
+About: ${project?.description || 'General Services'}
 `;
 
     // 3. Prepare System Prompt
-    let fullSystemPrompt = identityHeader + '\n' + FALLBACK_PROMPT;
+    let basePrompt = project?.system_prompt || FALLBACK_PROMPT;
+    
+    // Ensure {context} exists in the prompt if we have data
+    if (!basePrompt.includes('{context}')) {
+      basePrompt += '\n\nΣχετικές πληροφορίες από τη βάση γνώσης:\n{context}';
+    }
+
+    let fullSystemPrompt = identityHeader + '\n' + basePrompt.replaceAll('{context}', context || 'Δεν βρέθηκαν συγκεκριμένες πληροφορίες για αυτό το ερώτημα.');
+
+    console.log(`--- RAG CONTEXT FOR: "${lastMessage}" ---\n${context || 'EMPTY'}\n----------------`);
+
+    // 4. Critical Data Reinforcement
+    if (context && context.includes('CONTACT DATA:')) {
+      fullSystemPrompt += '\n\n**ΠΡΟΣΟΧΗ**: Στα παραπάνω δεδομένα υπάρχει η ενότητα "CONTACT DATA". Χρησιμοποίησε την ΑΚΡΙΒΗ διεύθυνση, πόλη, τηλέφωνα, email και τυχόν booking link που αναγράφονται εκεί αν ο χρήστης ρωτήσει. ΑΠΑΓΟΡΕΥΕΤΑΙ να λες ότι "δεν υπάρχει διεύθυνση" ή "δεν ξέρεις τα στοιχεία" όταν εμφανίζονται στο CONTEXT.';
+    }
+
+    // 5. Hallucination Guard
+    if (!context || context.length === 0) {
+      fullSystemPrompt += '\n\n**ΚΑΝΟΝΑΣ**: Εάν ο χρήστης ρωτάει για τηλέφωνα, διεύθυνση ή τιμές και δεν τις βλέπεις παραπάνω, πες ευγενικά ότι δεν είναι διαθέσιμες αυτή τη στιγμή. ΜΗΝ τις βγάλεις από το μυαλό σου.';
+    }
 
     // 6. Build Memory from leadState or previous tags
     const incomingLeadState = body.leadState || {};
@@ -60,26 +100,25 @@ Consultant Role: Senior Sales Professional
     }
 
     const memoryContext = Object.keys(memory).filter(k => memory[k]).length > 0 
-      ? `\n\nΣΗΜΑΝΤΙΚΟ - ΓΝΩΡΙΖΟΥΜΕ ΗΔΗ ΓΙΑ ΤΟΝ ΠΕΛΑΤΗ:\n${JSON.stringify(memory, null, 2)}\nΜΗΝ ξαναρωτήσεις αυτά που ήδη ξέρεις.`
+      ? `\n\nΣΗΜΑΝΤΙΚΟ - ΓΝΩΡΙΖΟΥΜΕ ΗΔΗ ΓΙΑ ΤΟΝ ΠΕΛΑΤΗ:\n${JSON.stringify(memory, null, 2)}\nΑΠΑΓΟΡΕΥΕΤΑΙ ΑΥΣΤΗΡΑ να ξαναρωτήσεις πληροφορίες που υπάρχουν παραπάνω. Προχώρα αμέσως στην επόμενη ερώτηση.`
       : '';
 
     fullSystemPrompt += memoryContext;
 
     const behavioralRules = `
-\nΕΝΤΟΛΕΣ ΣΥΜΠΕΡΙΦΟΡΑΣ:
-1. ΟΝΟΜΑ: Χρησιμοποίησε το ΑΚΡΙΒΕΣ όνομα που σου έδωσε ο χρήστης (π.χ. αν πει Dinos, πες "Ντίνο" ή "Dinos"). ΜΗΝ το αλλάζεις.
-2. ΣΕΙΡΑ ΕΡΩΤΗΣΕΩΝ (Μία ανά φορά): 
-   - 1: Τι ακριβώς χρειάζεται.
-   - 2: Τι budget διαθέτει (ΚΡΙΣΙΜΟ).
-   - 3: Ποιο είναι το όνομά του.
-   - 4: Email ή τηλέφωνο.
-3. ΜΟΛΙΣ ΕΧΕΙΣ αυτά τα 4, πες "Τέλεια, η πρόταση ετοιμάζεται!" και οπωσδήποτε βάλε το tag [LEAD_COMPLETE].
-4. ΜΗΝ βγάζεις budget ή υπηρεσίες από το μυαλό σου αν δεν τις έχει πει ο χρήστης.
+\nΕΝΤΟΛΕΣ ΣΥΜΠΕΡΙΦΟΡΑΣ (ΚΡΙΣΙΜΟ ΓΙΑ DEMO):
+1. ΜΗΝ ΧΑΙΡΕΤΑΣ στην αρχή. Μόνο την ερώτηση.
+2. ΚΑΘΕ ΑΠΑΝΤΗΣΗ ΠΡΕΠΕΙ ΝΑ ΤΕΛΕΙΩΝΕΙ ΜΕ ΜΙΑ ΞΕΚΑΘΑΡΗ ΕΡΩΤΗΣΗ. Ο χρήστης δεν πρέπει να αναρωτιέται τι να γράψει.
+3. ΑΠΑΝΤΗΣΗ ΜΕ ΜΕΓΙΣΤΟ 1-2 ΠΡΟΤΑΣΕΙΣ. 
+4. ΣΕ ΚΑΘΕ ΑΠΑΝΤΗΣΗ ΠΟΥ ΜΑΘΑΙΝΕΙΣ ΚΑΤΙ, ΒΑΛΕ ΤΟ ΤΑΓ [LEAD_UPDATE: {"key": "value"}]. 
+5. ΑΝ Ο ΧΡΗΣΤΗΣ ΔΕΝ ΔΙΝΕΙ ΣΤΟΙΧΕΙΑ (π.χ. "δεν έχω site"), ΜΗΝ ΕΠΙΜΕΝΕΙΣ. Προχώρα αμέσως στο επόμενο.
+6. ΜΟΛΙΣ ΕΧΕΙΣ client_name ΚΑΙ (email Η phone), πες "Τέλεια, έχω όσα χρειάζομαι για να ετοιμάσω την πρότασή σας!" και ΒΑΛΕ [LEAD_COMPLETE].
+7. ΣΚΟΠΟΣ ΕΙΝΑΙ Η ΠΩΛΗΣΗ. Μην κάνεις μεγάλες συζητήσεις. Μάζεψε τα στοιχεία και κλείσε το lead γρήγορα.
 `;
 
     fullSystemPrompt += behavioralRules;
 
-    // 7. Call Groq with safety history trim
+    // 7. Call Groq with safety history trim (increased to 20 for better context)
     const sanitizedMessages = messages
       .slice(-20) 
       .map((m: any) => ({
@@ -97,6 +136,7 @@ Consultant Role: Senior Sales Professional
       stream: true,
       temperature: 0.1,
     });
+    console.log(`[CHAT] Groq stream established.`);
 
     const encoder = new TextEncoder();
     let insideThink = false;
@@ -122,13 +162,18 @@ Consultant Role: Senior Sales Professional
       return result;
     }
 
+    function stripControlTags(chunkText: string): string {
+      // Only strip <think> blocks from UI, keep LEAD tags for client-side parsing
+      return stripThinkingBlocks(chunkText);
+    }
+
     const stream = new ReadableStream({
       async start(controller) {
         try {
           for await (const chunk of response) {
             const content = chunk.choices[0]?.delta?.content || '';
             if (content) {
-              const visible = stripThinkingBlocks(content);
+              const visible = stripControlTags(content);
               if (visible) {
                 controller.enqueue(encoder.encode(visible));
               }
@@ -147,12 +192,18 @@ Consultant Role: Senior Sales Professional
     });
 
   } catch (error: any) {
-    console.error('[CHAT API ERROR]', error);
+    const errorLog = `
+--- CHAT API ERROR [${new Date().toISOString()}] ---
+Message: ${error.message}
+Stack: ${error.stack}
+----------------------
+`;
+    console.error(errorLog);
     return new Response(JSON.stringify({ 
       error: 'Chat failed', 
       details: error.message
     }), {
-      status: 500,
+      status: error.status || 500,
       headers: { 'Content-Type': 'application/json' },
     });
   }
