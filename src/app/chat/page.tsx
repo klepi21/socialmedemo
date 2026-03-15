@@ -212,9 +212,14 @@ function ChatComponent() {
       }
 
       // Auto-detect lead completion
-      if (assistantText.includes('[LEAD_COMPLETE]') && (leadState.email || leadState.phone)) {
-        console.log('[LEAD] Complete tag detected, triggering analysis...');
-        setTimeout(() => handleFinish(), 2000);
+      // Process complete logic
+      const lowerText = assistantText.toLowerCase();
+      const isFinishing = assistantText.includes('[LEAD_COMPLETE]') || 
+                         (lowerText.includes('πρόταση ετοιμάζεται') && lowerText.includes('ευχαριστούμε'));
+
+      if (isFinishing && (leadState.email || leadState.phone)) {
+        console.log('[LEAD] Completion detected, triggering analysis...');
+        setTimeout(() => handleFinish(), 1500);
       }
 
       // Safety net: auto-analyze after 10+ messages if we have SOME data
