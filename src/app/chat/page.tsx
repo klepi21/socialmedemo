@@ -241,19 +241,21 @@ function ChatComponent() {
             setLeadState(prev => ({ ...prev, ...update }));
           } catch(e) {}
         }
+
+        // Real-time Completion Detection (Inside Loop for Speed)
+        if (assistantText.includes('[LEAD_COMPLETE]') || assistantText.includes('έχω όσα χρειάζομαι για να ετοιμάσω την πρότασή σας')) {
+          if (!isAnalyzing && !isFinished) {
+            console.log('[LEAD] Completion detected in stream, preparing analysis...');
+            // Wait 2 seconds to let the user hear/read the final sentence
+            setTimeout(() => handleFinish(), 2000);
+            break; // Exit stream loop early as we are finishing
+          }
+        }
       }
 
-      // Auto-detect lead completion
-      if (assistantText.includes('[LEAD_COMPLETE]') && (leadState.email || leadState.phone)) {
-        console.log('[LEAD] Complete tag detected, triggering analysis...');
-        setTimeout(() => handleFinish(), 2000);
-      }
-
-      // Safety net: auto-analyze after 10+ messages if we have SOME data
-      const totalMessages = messagesRef.current.length;
-      if (totalMessages >= 10 && leadState.client_name && (leadState.email || leadState.phone) && !isAnalyzing && !leadData) {
-        console.log('[LEAD] Safety net: enough messages with lead data, auto-analyzing...');
-        setTimeout(() => handleFinish(), 3000);
+      // Final check just in case the loop break missed it
+      if (assistantText.includes('[LEAD_COMPLETE]') && !isAnalyzing && !isFinished) {
+        handleFinish();
       }
 
     } catch (err) {
