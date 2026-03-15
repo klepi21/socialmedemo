@@ -140,9 +140,12 @@ const projectService = {
   async saveLead(projectId: string | null, clientName: string, email: string, phone: string, data: any) {
     
     const id = uuidv4();
+    const cleanProjectId = (projectId === 'undefined' || !projectId) ? null : projectId;
+    
+    console.log(`[DB] Saving lead ${id} for project ${cleanProjectId}`);
     await db.execute({
       sql: `INSERT INTO leads (id, project_id, client_name, email, phone, data) VALUES (?, ?, ?, ?, ?, ?)`,
-      args: [id, projectId, clientName, email, phone, JSON.stringify(data)]
+      args: [id, cleanProjectId, clientName, email, phone, JSON.stringify(data)]
     });
     return id;
   },

@@ -6,12 +6,13 @@ import { initSchema } from '@/lib/db';
 
 export async function POST(req: NextRequest) {
   try {
-    const { messages, projectId } = await req.json();
-    
     // Ensure DB tables exist (Leads table might be missing)
-    await initSchema();
+    await initSchema().catch(e => console.error("[LEAD ANALYZE] Schema init failed:", e));
     
-    console.log(`[LEAD ANALYZE] Starting analysis. ProjectId: ${projectId}, Messages: ${messages?.length}`);
+    const { messages, projectId } = await req.json();
+    const cleanProjectId = (projectId === 'undefined' || !projectId) ? null : projectId;
+    
+    console.log(`[LEAD ANALYZE] Starting analysis. ProjectId: ${cleanProjectId}, Messages: ${messages?.length}`);
 
     // 1. Identify the project theme to fetch relevant "brain" context
     const userMessages = messages.filter((m: any) => m.role === 'user').map((m: any) => m.content).join(' ');
@@ -78,10 +79,28 @@ Return ONLY the JSON.
     const rawContent = response.choices[0].message.content || '{}';
     console.log('[LEAD ANALYZE] Raw AI response:', rawContent.slice(0, 200));
     
-    // Clean thinking blocks if present
+    // AI Response Parsing with Robust JSON extraction
     const cleanContent = rawContent.replace(/<think>[\s\S]*?<\/think>/g, '').trim();
-    const result = JSON.parse(cleanContent);
-    console.log('[LEAD ANALYZE] Parsed result. client_name:', result.client_name, 'email:', result.email);
+    let result: any;
+    
+    try {
+      // Try direct parse
+      result = JSON.parse(cleanContent);
+    } catch (e) {
+      // Fallback: try to find JSON block
+      const jsonMatch = cleanContent.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+         try {
+           result = JSON.parse(jsonMatch[0]);
+         } catch (e2) {
+           throw new Error("Could not parse AI JSON response");
+         }
+      } else {
+        throw new Error("AI did not return a valid JSON structure");
+      }
+    }
+
+    console.log('[LEAD ANALYZE] Parsed result. client_name:', result.client_name);
 
     // Save to Database - ALWAYS save if we have any useful data
     const clientName = result.client_name || 'Unknown';
@@ -91,12 +110,13 @@ Return ONLY the JSON.
     console.log(`[LEAD ANALYZE] Saving lead: ${clientName} / ${email} / ${phone}`);
     try {
       const leadId = await projectService.saveLead(
-        projectId || null,
+        cleanProjectId,
         clientName,
         email,
         phone,
         result
       );
+      if (!leadId) throw new Error("Database returned empty ID for lead save");
       console.log(`[LEAD ANALYZE] ✅ Lead saved successfully! ID: ${leadId}`);
     } catch (saveErr: any) {
       console.error(`[LEAD ANALYZE] ❌ FAILED to save lead:`, saveErr.message);
