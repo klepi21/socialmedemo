@@ -6,13 +6,13 @@ import projectService from '@/lib/project-service';
 export const dynamic = 'force-dynamic';
 
 const FALLBACK_PROMPT = `
-Είσαι ο Sales Consultant της εταιρείας.
-Στόχος σου: Να βοηθήσεις τον πελάτη και να συλλέξεις στοιχεία για ΠΡΟΤΑΣΗ σε 3-4 μηνύματα.
+Είσαι ο Sales Consultant της εταιρείας SocialMe.
+Στόχος σου: Να συλλέξεις στοιχεία για ΠΡΟΤΑΣΗ σε 3-4 μηνύματα.
 
 ΚΑΝΟΝΕΣ:
 1. ΜΟΝΟ 1 ΠΡΟΤΑΣΗ + 1 ΞΕΚΑΘΑΡΗ ΕΡΩΤΗΣΗ στο τέλος.
 2. ΜΗΝ χαιρετάς μετά το πρώτο μήνυμα.
-3. Χρησιμοποίησε τις πληροφορίες από το {context} για να δείξεις ότι ξέρεις την υπηρεσία.
+3. Μην προσπαθείς να δώσεις λεπτομέρειες για τις υπηρεσίες ακόμα, απλά ρώτα τι χρειάζεται ο πελάτης.
 4. Μόλις έχεις Όνομα, Ανάγκη και ένα στοιχείο επικοινωνίας (Email/Phone), κλείσε αμέσως.
 `;
 
@@ -28,55 +28,16 @@ export async function POST(req: NextRequest) {
 
     // 1. Get Project Data
     const project = projectId ? await projectService.getProject(projectId) : null;
-    if (projectId && !project) {
-        console.warn(`[CHAT] Project ${projectId} requested but not found in DB.`);
-    }
-
-    // RAG context enhancement: user message + potential service intent
-    let context = '';
-    try {
-      if (projectId) {
-          console.log(`[CHAT] Fetching RAG context for ${projectId}...`);
-          const intentQuery = `${lastMessage} digital marketing development agency services`;
-          context = await getContext(intentQuery, projectId);
-          if (context && context.length > 3000) {
-              context = context.slice(0, 3000);
-          }
-          console.log(`[CHAT] RAG context fetched: ${context.length} chars`);
-      }
-    } catch (ragErr: any) {
-      console.error(`[CHAT] RAG FAILED (continuing without context):`, ragErr.message);
-      context = ''; 
-    }
     
     // 2. Build identity header
     const identityHeader = `
-PROJECT KNOWLEDGE BASE:
-Business: ${project?.name || 'SocialMe AI'}
-About: ${project?.description || 'General Services'}
+BUSINESS IDENTITY:
+Name: ${project?.name || 'SocialMe Digital Agency'}
+Consultant Role: Senior Sales Professional
 `;
 
-    // 3. Prepare System Prompt
-    let basePrompt = project?.system_prompt || FALLBACK_PROMPT;
-    
-    // Ensure {context} exists in the prompt if we have data
-    if (!basePrompt.includes('{context}')) {
-      basePrompt += '\n\nΣχετικές πληροφορίες από τη βάση γνώσης:\n{context}';
-    }
-
-    let fullSystemPrompt = identityHeader + '\n' + basePrompt.replaceAll('{context}', context || 'Δεν βρέθηκαν συγκεκριμένες πληροφορίες για αυτό το ερώτημα.');
-
-    console.log(`--- RAG CONTEXT FOR: "${lastMessage}" ---\n${context || 'EMPTY'}\n----------------`);
-
-    // 4. Critical Data Reinforcement
-    if (context && context.includes('CONTACT DATA:')) {
-      fullSystemPrompt += '\n\n**ΠΡΟΣΟΧΗ**: Στα παραπάνω δεδομένα υπάρχει η ενότητα "CONTACT DATA". Χρησιμοποίησε την ΑΚΡΙΒΗ διεύθυνση, πόλη, τηλέφωνα, email και τυχόν booking link που αναγράφονται εκεί αν ο χρήστης ρωτήσει. ΑΠΑΓΟΡΕΥΕΤΑΙ να λες ότι "δεν υπάρχει διεύθυνση" ή "δεν ξέρεις τα στοιχεία" όταν εμφανίζονται στο CONTEXT.';
-    }
-
-    // 5. Hallucination Guard
-    if (!context || context.length === 0) {
-      fullSystemPrompt += '\n\n**ΚΑΝΟΝΑΣ**: Εάν ο χρήστης ρωτάει για τηλέφωνα, διεύθυνση ή τιμές και δεν τις βλέπεις παραπάνω, πες ευγενικά ότι δεν είναι διαθέσιμες αυτή τη στιγμή. ΜΗΝ τις βγάλεις από το μυαλό σου.';
-    }
+    // 3. Prepare System Prompt - WE REMOVE RAG CONTEXT FROM CHAT TO AVOID CONFUSION
+    let fullSystemPrompt = identityHeader + '\n' + FALLBACK_PROMPT;
 
     // 6. Build Memory from leadState or previous tags
     const incomingLeadState = body.leadState || {};
@@ -98,24 +59,26 @@ About: ${project?.description || 'General Services'}
     }
 
     const memoryContext = Object.keys(memory).filter(k => memory[k]).length > 0 
-      ? `\n\nΣΗΜΑΝΤΙΚΟ - ΓΝΩΡΙΖΟΥΜΕ ΗΔΗ ΓΙΑ ΤΟΝ ΠΕΛΑΤΗ:\n${JSON.stringify(memory, null, 2)}\nΑΠΑΓΟΡΕΥΕΤΑΙ ΑΥΣΤΗΡΑ να ξαναρωτήσεις πληροφορίες που υπάρχουν παραπάνω. Προχώρα αμέσως στην επόμενη ερώτηση.`
+      ? `\n\nΣΗΜΑΝΤΙΚΟ - ΓΝΩΡΙΖΟΥΜΕ ΗΔΗ ΓΙΑ ΤΟΝ ΠΕΛΑΤΗ:\n${JSON.stringify(memory, null, 2)}\nΠροχώρα αμέσως στην επόμενη ερώτηση.`
       : '';
 
     fullSystemPrompt += memoryContext;
 
     const behavioralRules = `
-\nΕΝΤΟΛΕΣ ΣΥΜΠΕΡΙΦΟΡΑΣ (ΚΡΙΣΙΜΟ):
-1. ΜΗΝ ΧΑΙΡΕΤΑΣ στην αρχή. Μόνο την ερώτηση.
-2. ΑΠΑΝΤΗΣΗ ΜΕ ΜΕΓΙΣΤΟ 1 ΠΡΟΤΑΣΗ. 
-3. ΣΕ ΚΑΘΕ ΑΠΑΝΤΗΣΗ ΠΟΥ ΜΑΘΑΙΝΕΙΣ ΚΑΤΙ, ΒΑΛΕ ΤΟ ΤΑΓ [LEAD_UPDATE: {"key": "value"}]. 
-4. ΑΝ Ο ΧΡΗΣΤΗΣ ΔΕΝ ΠΑΡΕΧΕΙ ΚΑΠΟΙΑ ΠΛΗΡΟΦΟΡΙΑ (π.χ. "δεν έχω site"), ΜΗΝ ΕΠΙΜΕΝΕΙΣ. Βάλε [LEAD_UPDATE: {"key": "none"}] και προχώρα στην επόμενη ερώτηση.
-5. ΜΟΛΙΣ ΕΧΕΙΣ client_name, email, phone ΚΑΙ service_type, πες μια σύντομη ευχαριστήρια πρόταση και ΒΑΛΕ [LEAD_COMPLETE].
-6. ΠΟΤΕ ΜΗΝ ΣΤΕΛΝΕΙΣ ΜΟΝΟ ΤΑ TAGS. Πρέπει πάντα να προηγείται μια σύντομη πρόταση στα Ελληνικά.
+\nΕΝΤΟΛΕΣ ΣΥΜΠΕΡΙΦΟΡΑΣ (ΚΑΘΑΡΟ LEAD CAPTURE):
+1. ΠΟΤΕ ΜΗΝ ΛΕΣ: "Βάσει της ιστοσελίδας μας" ή "Είμαι ο Ευπαθές Βοηθός".
+2. ΟΝΟΜΑ: Είσαι ο Σύμβουλος Πωλήσεων του SocialMe.
+3. ΚΑΘΕ ΑΠΑΝΤΗΣΗ ΠΡΕΠΕΙ ΝΑ ΤΕΛΕΙΩΝΕΙ ΜΕ ΕΡΩΤΗΣΗ.
+4. ΔΙΑΔΙΚΑΣΙΑ 3 ΒΗΜΑΤΩΝ: 
+   - Ρώτα τι ανάγκη έχει (π.χ. Marketing, Web).
+   - Ρώτα το όνομα.
+   - Ρώτα email ή τηλέφωνο.
+5. ΜΟΛΙΣ ΕΧΕΙΣ αυτά τα 3, πες "Τέλεια, η πρόταση ετοιμάζεται!" και βάλε [LEAD_COMPLETE].
 `;
 
     fullSystemPrompt += behavioralRules;
 
-    // 7. Call Groq with safety history trim (increased to 20 for better context)
+    // 7. Call Groq with safety history trim
     const sanitizedMessages = messages
       .slice(-20) 
       .map((m: any) => ({
@@ -133,7 +96,6 @@ About: ${project?.description || 'General Services'}
       stream: true,
       temperature: 0.1,
     });
-    console.log(`[CHAT] Groq stream established.`);
 
     const encoder = new TextEncoder();
     let insideThink = false;
@@ -159,18 +121,13 @@ About: ${project?.description || 'General Services'}
       return result;
     }
 
-    function stripControlTags(chunkText: string): string {
-      // Only strip <think> blocks from UI, keep LEAD tags for client-side parsing
-      return stripThinkingBlocks(chunkText);
-    }
-
     const stream = new ReadableStream({
       async start(controller) {
         try {
           for await (const chunk of response) {
             const content = chunk.choices[0]?.delta?.content || '';
             if (content) {
-              const visible = stripControlTags(content);
+              const visible = stripThinkingBlocks(content);
               if (visible) {
                 controller.enqueue(encoder.encode(visible));
               }
@@ -189,18 +146,12 @@ About: ${project?.description || 'General Services'}
     });
 
   } catch (error: any) {
-    const errorLog = `
---- CHAT API ERROR [${new Date().toISOString()}] ---
-Message: ${error.message}
-Stack: ${error.stack}
-----------------------
-`;
-    console.error(errorLog);
+    console.error('[CHAT API ERROR]', error);
     return new Response(JSON.stringify({ 
       error: 'Chat failed', 
       details: error.message
     }), {
-      status: error.status || 500,
+      status: 500,
       headers: { 'Content-Type': 'application/json' },
     });
   }
