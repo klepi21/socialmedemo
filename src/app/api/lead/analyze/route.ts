@@ -74,7 +74,7 @@ Return ONLY the JSON.
     console.log('[LEAD ANALYZE] Raw AI response:', rawContent.slice(0, 200));
     
     // Clean thinking blocks if present
-    const cleanContent = rawContent.replace(/<think>[\s\S]*?<\/think>/g, '').trim();
+    const cleanContent = rawContent.replace(/<(think|thinking)>[\s\S]*?<\/(think|thinking)>/g, '').trim();
     const result = JSON.parse(cleanContent);
     console.log('[LEAD ANALYZE] Parsed result. client_name:', result.client_name, 'email:', result.email);
 
