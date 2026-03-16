@@ -407,9 +407,9 @@ function ChatComponent() {
                         <Sparkles size={40} />
                       </div>
                       <div className="space-y-2">
-                        <h3 className="text-2xl font-black text-slate-800 tracking-tight">Γεια σας!</h3>
-                        <p className="text-slate-500 max-w-xs mx-auto text-sm leading-relaxed mb-4">
-                          Είμαι ο ψηφιακός σας σύμβουλος. Πώς προτιμάτε να επικοινωνήσουμε;
+                        <h3 className="text-2xl font-black text-slate-800 tracking-tight">Καλώς ήρθατε!</h3>
+                        <p className="text-slate-500 max-w-sm mx-auto text-sm leading-relaxed mb-4 px-4">
+                          Είμαι ο ψηφιακός σας βοηθός. Είμαι εδώ για να καταγράψω τις ανάγκες σας και να ετοιμάσω την ιδανική πρόταση για το project σας. Πώς προτιμάτε να ξεκινήσουμε;
                         </p>
                         <div className="flex items-center justify-center gap-3">
                           <Button 
