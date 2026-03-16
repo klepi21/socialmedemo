@@ -153,6 +153,14 @@ function ChatComponent() {
     if (useVoice && !isLoading) startListening((t) => handleSend(t));
   };
 
+  const cleanContent = (text: string) => {
+    return text
+      .replace(/<think>[\s\S]*?(<\/think>|$)/g, '')
+      .replace(/\[LEAD_UPDATE:[\s\S]*?\]/g, '')
+      .replace(/\[LEAD_COMPLETE\]/g, '')
+      .trim();
+  };
+
   const handleSend = async (content: string) => {
     const text = content || input;
     if (!text.trim() || isLoading) return;
@@ -206,10 +214,7 @@ function ChatComponent() {
           const newMessages = [...prev];
           const last = newMessages[newMessages.length - 1];
           if (last.role === 'assistant') {
-            last.content = assistantText
-              .replace(/\[LEAD_UPDATE:[\s\S]*?\]/g, '')
-              .replace('[LEAD_COMPLETE]', '')
-              .trim();
+            last.content = cleanContent(assistantText);
           }
           return newMessages;
         });
@@ -221,11 +226,8 @@ function ChatComponent() {
             const boundaryIndex = match.index! + match[0].length;
             const rawSentence = sentenceBuffer.substring(0, boundaryIndex).trim();
             sentenceBuffer = sentenceBuffer.substring(boundaryIndex);
-            const cleanSentence = rawSentence
-              .replace(/<think>[\s\S]*?<\/think>/g, '')
-              .replace(/\[LEAD_UPDATE:[\s\S]*?\]/g, '')
-              .replace('[LEAD_COMPLETE]', '')
-              .trim();
+            
+            const cleanSentence = cleanContent(rawSentence);
             if (cleanSentence.length > 2) {
               speakQueueRef.current.push(cleanSentence);
               processSpeakQueue();
@@ -246,10 +248,26 @@ function ChatComponent() {
         if (assistantText.includes('[LEAD_COMPLETE]') || assistantText.includes('έχω όσα χρειάζομαι για να ετοιμάσω την πρότασή σας')) {
           if (!isAnalyzing && !isFinished) {
             console.log('[LEAD] Completion detected in stream, preparing analysis...');
-            // Wait 2 seconds to let the user hear/read the final sentence
+            // Flush remaining speech buffer
+            if (useVoice && sentenceBuffer.trim()) {
+              const finalClean = cleanContent(sentenceBuffer);
+              if (finalClean.length > 2) {
+                speakQueueRef.current.push(finalClean);
+                processSpeakQueue();
+              }
+            }
             setTimeout(() => handleFinish(), 2000);
             break; // Exit stream loop early as we are finishing
           }
+        }
+      }
+
+      // Flush speech for regular messages too
+      if (useVoice && sentenceBuffer.trim() && !isFinished) {
+        const finalClean = cleanContent(sentenceBuffer);
+        if (finalClean.length > 2) {
+          speakQueueRef.current.push(finalClean);
+          processSpeakQueue();
         }
       }
 

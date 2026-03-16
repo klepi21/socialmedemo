@@ -141,30 +141,56 @@ About: ${project?.description || 'General Services'}
     const encoder = new TextEncoder();
     let insideThink = false;
 
-    function stripThinkingBlocks(chunkText: string): string {
+    let tagBuffer = '';
+    function stripControlTags(chunkText: string): string {
       let result = '';
+      let text = tagBuffer + chunkText;
+      tagBuffer = '';
+      
       let i = 0;
-      while (i < chunkText.length) {
-        if (!insideThink && chunkText.slice(i, i + 7) === '<think>') {
-          insideThink = true;
-          i += 7;
-          continue;
+      while (i < text.length) {
+        if (!insideThink) {
+          // Look for start of <think>
+          if (text[i] === '<') {
+            const remaining = text.slice(i);
+            if ('<think>'.startsWith(remaining)) {
+              if (remaining.length >= 7) {
+                 if (remaining.startsWith('<think>')) {
+                   insideThink = true;
+                   i += 7;
+                   continue;
+                 }
+              } else {
+                // Potential split tag
+                tagBuffer = remaining;
+                break;
+              }
+            }
+          }
+          result += text[i];
+          i++;
+        } else {
+          // Inside think, look for end of </think>
+          if (text[i] === '<') {
+            const remaining = text.slice(i);
+            if ('</think>'.startsWith(remaining)) {
+              if (remaining.length >= 8) {
+                if (remaining.startsWith('</think>')) {
+                  insideThink = false;
+                  i += 8;
+                  continue;
+                }
+              } else {
+                // Potential split tag
+                tagBuffer = remaining;
+                break;
+              }
+            }
+          }
+          i++;
         }
-        if (insideThink && chunkText.slice(i, i + 8) === '</think>') {
-          insideThink = false;
-          i += 8;
-          continue;
-        }
-        if (insideThink) { i += 1; continue; }
-        result += chunkText[i];
-        i += 1;
       }
       return result;
-    }
-
-    function stripControlTags(chunkText: string): string {
-      // Only strip <think> blocks from UI, keep LEAD tags for client-side parsing
-      return stripThinkingBlocks(chunkText);
     }
 
     const stream = new ReadableStream({
