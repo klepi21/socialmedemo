@@ -156,8 +156,7 @@ function ChatComponent() {
   const cleanContent = (text: string) => {
     return text
       .replace(/<think>[\s\S]*?(<\/think>|$)/g, '')
-      .replace(/\[LEAD_UPDATE:[\s\S]*?\]/g, '')
-      .replace(/\[LEAD_COMPLETE\]/g, '')
+      .replace(/\[LEAD_(UPDATE|COMPLETE)[\s\S]*?(\]|(?=\[)|$)/g, '')
       .trim();
   };
 
@@ -197,9 +196,7 @@ function ChatComponent() {
       const decoder = new TextDecoder();
       let assistantText = '';
       let sentenceBuffer = '';
-
-      // Initialize assistant message for streaming
-      setMessages(prev => [...prev, { role: 'assistant', content: '' }]);
+      let hasStartedMessage = false;
 
       while (true) {
         const { done, value } = await reader!.read();
@@ -209,15 +206,22 @@ function ChatComponent() {
         assistantText += chunk;
         sentenceBuffer += chunk;
 
+        const currentCleanContent = cleanContent(assistantText);
+
         // Update UI in real-time
-        setMessages(prev => {
-          const newMessages = [...prev];
-          const last = newMessages[newMessages.length - 1];
-          if (last.role === 'assistant') {
-            last.content = cleanContent(assistantText);
-          }
-          return newMessages;
-        });
+        if (!hasStartedMessage && currentCleanContent.length > 0) {
+          setMessages(prev => [...prev, { role: 'assistant', content: currentCleanContent }]);
+          hasStartedMessage = true;
+        } else if (hasStartedMessage) {
+          setMessages(prev => {
+            const newMessages = [...prev];
+            const last = newMessages[newMessages.length - 1];
+            if (last.role === 'assistant') {
+              last.content = currentCleanContent;
+            }
+            return newMessages;
+          });
+        }
 
         // Voice handling
         if (useVoice) {
@@ -248,6 +252,7 @@ function ChatComponent() {
         if (assistantText.includes('[LEAD_COMPLETE]') || assistantText.includes('έχω όσα χρειάζομαι για να ετοιμάσω την πρότασή σας')) {
           if (!isAnalyzing && !isFinished) {
             console.log('[LEAD] Completion detected in stream, preparing analysis...');
+            
             // Flush remaining speech buffer
             if (useVoice && sentenceBuffer.trim()) {
               const finalClean = cleanContent(sentenceBuffer);
@@ -256,6 +261,9 @@ function ChatComponent() {
                 processSpeakQueue();
               }
             }
+            
+            // Keep the transition state active
+            setIsAnalyzing(true); 
             setTimeout(() => handleFinish(), 2000);
             break; // Exit stream loop early as we are finishing
           }
