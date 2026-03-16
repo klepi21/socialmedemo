@@ -69,14 +69,29 @@ OUTPUT FORMAT (JSON):
 Return ONLY the JSON.
 `;
 
-    console.log('[LEAD ANALYZE] Calling Groq for analysis...');
-    const response = await groq.chat.completions.create({
-      model: 'qwen/qwen3-32b',
-      messages: [{ role: 'system', content: analysisPrompt }],
-      response_format: { type: 'json_object' }
-    });
+    const getAnalysis = async (retry = false) => {
+      console.log(`[LEAD ANALYZE] Calling Groq for analysis (Retry: ${retry})...`);
+      const response = await groq.chat.completions.create({
+        model: 'qwen/qwen3-32b',
+        messages: [
+          { 
+            role: 'system', 
+            content: analysisPrompt + "\n\nCRITICAL: You MUST return a VALID JSON object. Do not include any text before or after the JSON. Ensure all keys in the schema are present." 
+          }
+        ],
+        response_format: { type: 'json_object' },
+        temperature: retry ? 0.3 : 0.1, 
+      });
+      return response.choices[0].message.content || '{}';
+    };
 
-    const rawContent = response.choices[0].message.content || '{}';
+    let rawContent = '';
+    try {
+      rawContent = await getAnalysis();
+    } catch (e) {
+      console.warn("[LEAD ANALYZE] First attempt failed, retrying once...", e instanceof Error ? e.message : e);
+      rawContent = await getAnalysis(true);
+    }
     console.log('[LEAD ANALYZE] Raw AI response:', rawContent.slice(0, 200));
     
     // AI Response Parsing with Robust JSON extraction

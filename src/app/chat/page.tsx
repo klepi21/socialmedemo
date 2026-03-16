@@ -53,6 +53,12 @@ function ChatComponent() {
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const isAnalyzingRef = useRef(false);
+
+  const setAnalyzingState = (val: boolean) => {
+    setIsAnalyzing(val);
+    isAnalyzingRef.current = val;
+  };
   const [leadData, setLeadData] = useState<any>(null);
   const [projectName, setProjectName] = useState<string | null>(null);
 
@@ -250,7 +256,7 @@ function ChatComponent() {
 
         // Real-time Completion Detection (Inside Loop for Speed)
         if (assistantText.includes('[LEAD_COMPLETE]') || assistantText.includes('έχω όσα χρειάζομαι για να ετοιμάσω την πρότασή σας')) {
-          if (!isAnalyzing && !isFinished) {
+          if (!isAnalyzingRef.current && !isFinished) {
             console.log('[LEAD] Completion detected in stream, preparing analysis...');
             
             // Flush remaining speech buffer
@@ -263,7 +269,7 @@ function ChatComponent() {
             }
             
             // Keep the transition state active
-            setIsAnalyzing(true); 
+            setAnalyzingState(true); 
             setTimeout(() => handleFinish(), 2000);
             break; // Exit stream loop early as we are finishing
           }
@@ -279,10 +285,8 @@ function ChatComponent() {
         }
       }
 
-      // Final check just in case the loop break missed it
-      if (assistantText.includes('[LEAD_COMPLETE]') && !isAnalyzing && !isFinished) {
-        handleFinish();
-      }
+      // The completion is now handled inside the loop or via manual check
+      // No extra handleFinish() call here to avoid double-firing
 
     } catch (err) {
       console.error(err);
@@ -294,8 +298,8 @@ function ChatComponent() {
   const [isFinished, setIsFinished] = useState(false);
 
   const handleFinish = async () => {
-    if (messagesRef.current.length < 2) return;
-    setIsAnalyzing(true);
+    if (messagesRef.current.length < 2 || isFinished) return;
+    setAnalyzingState(true);
     stopListening();
     cancelSpeak();
 
